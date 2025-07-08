@@ -1,0 +1,23 @@
+{
+  "name": "rhythm-pose",
+  "version": "1.0.0",
+  "description": "Web-based pose detection and action recognition using ml5.js",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8080 -c-1",
+    "dev": "npx live-server --port=8080"
+  },
+  "keywords": [
+    "ml5.js",
+    "pose-detection",
+    "action-recognition",
+    "computer-vision",
+    "web"
+  ],
+  "author": "Alfred",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.2"
+  }
+}

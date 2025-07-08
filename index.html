@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythm Pose - 动作识别系统</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <!-- TensorFlow.js 库 (用于控制后端) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+    <!-- p5.js 库 (ml5.js 依赖) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <!-- ml5.js 库 - 使用稳定版本 -->
+    <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
+    <!-- MediaPipe Hands (使用更稳定的版本) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1640029074/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1620248257/drawing_utils.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎯 Rhythm Pose</h1>
+            <p>AI 动作识别与评分系统</p>
+        </header>
+
+        <main class="main-content">
+            <!-- 控制面板 -->
+            <div class="control-panel">
+                <div class="status-info">
+                    <div class="status-item">
+                        <span class="label">摄像头状态:</span>
+                        <span id="camera-status" class="status">未连接</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">AI 模型:</span>
+                        <span id="model-status" class="status">加载中...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">检测状态:</span>
+                        <span id="detection-status" class="status">待机</span>
+                    </div>
+                </div>
+
+                <div class="action-controls">
+                    <button id="camera-btn" class="btn btn-outline">启用摄像头</button>
+                    <button id="start-btn" class="btn btn-primary" disabled>开始检测</button>
+                    <button id="stop-btn" class="btn btn-secondary" disabled>停止检测</button>
+                    <button id="reset-btn" class="btn btn-outline">重置</button>
+                </div>
+
+                <div class="display-controls">
+                    <label class="toggle-container">
+                        <input type="checkbox" id="show-skeleton" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">显示骨骼和关节点</span>
+                    </label>
+                </div>
+
+                <div class="detection-mode">
+                    <label for="mode-select">检测模式:</label>
+                    <select id="mode-select" class="select">
+                        <option value="pose">人体姿势</option>
+                        <option value="hands">手部动作</option>
+                        <option value="both">姿势+手部</option>
+                    </select>
+                </div>
+
+                <div class="pose-selector">
+                    <label for="pose-select">选择动作:</label>
+                    <select id="pose-select" class="select">
+                        <option value="tree">树式 (瑜伽)</option>
+                        <option value="warrior">战士式 (瑜伽)</option>
+                        <option value="plank">平板支撑</option>
+                        <option value="squat">深蹲</option>
+                        <option value="jumping-jacks">开合跳</option>
+                        <option value="wave">挥手</option>
+                        <option value="thumbs-up">点赞</option>
+                        <option value="peace">比心/胜利手势</option>
+                        <option value="fist">握拳</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 视频显示区域 -->
+            <div class="video-container">
+                <div id="video-wrapper">
+                    <!-- p5.js canvas 将在这里创建 -->
+                </div>
+                
+                <!-- 姿态信息显示 -->
+                <div class="pose-info">
+                    <div class="pose-guide">
+                        <h3>动作指导</h3>
+                        <div id="pose-instructions">
+                            请选择一个动作开始练习
+                        </div>
+                    </div>
+                    
+                    <div class="pose-feedback">
+                        <h3>实时反馈</h3>
+                        <div id="pose-feedback">
+                            等待检测...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 评分区域 -->
+            <div class="scoring-panel">
+                <div class="score-display">
+                    <div class="current-score">
+                        <span class="score-label">当前得分</span>
+                        <span id="current-score" class="score-value">0</span>
+                    </div>
+                    <div class="best-score">
+                        <span class="score-label">最佳得分</span>
+                        <span id="best-score" class="score-value">0</span>
+                    </div>
+                </div>
+                
+                <div class="score-breakdown">
+                    <h4>评分详情</h4>
+                    <div class="score-metrics">
+                        <div class="metric">
+                            <span class="metric-name">姿态准确度:</span>
+                            <span id="accuracy-score" class="metric-value">0%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-name">稳定性:</span>
+                            <span id="stability-score" class="metric-value">0%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-name">持续时间:</span>
+                            <span id="duration-score" class="metric-value">0s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>基于 ml5.js 构建 | 支持实时动作识别与评分</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript 文件 -->
+    <script src="js/pose-definitions.js"></script>
+    <script src="js/pose-detector.js"></script>
+    <script src="js/hand-detector.js"></script>
+    <script src="js/mediapipe-hand-detector.js"></script>
+    <script src="js/scoring-system.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
