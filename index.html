@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="styles/main.css">
     <!-- TensorFlow.js 库 (用于控制后端) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+    <!-- TensorFlow.js PoseNet 模型 (用于瑜伽动作识别) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.0.0/dist/pose-detection.min.js"></script>
     <!-- p5.js 库 (ml5.js 依赖) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
     <!-- ml5.js 库 - 使用稳定版本 -->
@@ -54,6 +56,8 @@
                         <span class="toggle-slider"></span>
                         <span class="toggle-label">显示骨骼和关节点</span>
                     </label>
+
+
                 </div>
 
                 <div class="detection-mode">
@@ -68,15 +72,29 @@
                 <div class="pose-selector">
                     <label for="pose-select">选择动作:</label>
                     <select id="pose-select" class="select">
-                        <option value="tree">树式 (瑜伽)</option>
-                        <option value="warrior">战士式 (瑜伽)</option>
-                        <option value="plank">平板支撑</option>
-                        <option value="squat">深蹲</option>
-                        <option value="jumping-jacks">开合跳</option>
-                        <option value="wave">挥手</option>
-                        <option value="thumbs-up">点赞</option>
-                        <option value="peace">比心/胜利手势</option>
-                        <option value="fist">握拳</option>
+                        <option value="yoga-auto">🧘‍♀️ 瑜伽动作自动识别</option>
+                        <option value="tree">🌳 树式 (瑜伽)</option>
+                        <option value="warrior">⚔️ 战士式 (瑜伽)</option>
+                        <option value="eagle">🦅 鹰式 (瑜伽)</option>
+                        <option value="dancer">💃 舞者式 (瑜伽)</option>
+                        <option value="bow">🏹 弓式 (瑜伽)</option>
+                        <option value="plank">📏 平板支撑</option>
+                        <option value="side-plank">📐 侧平板支撑</option>
+                        <option value="superman">🦸‍♂️ 超人式</option>
+                        <option value="squat">🏋️ 深蹲</option>
+                        <option value="jumping-jacks">🤸‍♀️ 开合跳</option>
+                        <option value="wave">👋 挥手</option>
+                        <option value="thumbs-up">👍 点赞</option>
+                        <option value="peace">✌️ 比心/胜利手势</option>
+                        <option value="fist">✊ 握拳</option>
+                        <option value="open-palm">🖐️ 张开手掌</option>
+                        <option value="pointing">👉 指向</option>
+                        <option value="rock-on">🤘 摇滚手势</option>
+                        <option value="ok-sign">👌 OK手势</option>
+                        <option value="call-me">🤙 打电话手势</option>
+                        <option value="gun-sign">🔫 手枪手势</option>
+                        <option value="three-fingers">🖖 三指手势</option>
+                        <option value="four-fingers">🖐️ 四指手势</option>
                     </select>
                 </div>
             </div>
@@ -117,7 +135,37 @@
                         <span id="best-score" class="score-value">0</span>
                     </div>
                 </div>
-                
+
+                <!-- 游戏化元素 -->
+                <div class="game-stats">
+                    <div class="level-display">
+                        <span class="level-label">等级 <span id="player-level">1</span></span>
+                        <div class="level-progress">
+                            <div id="level-progress-bar" class="progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="combo-display">
+                        <span id="combo-text" class="combo-text"></span>
+                        <span class="combo-count">连击: <span id="combo-count">0</span></span>
+                    </div>
+
+                    <div class="stats-row">
+                        <div class="stat-item">
+                            <span class="stat-label">总分:</span>
+                            <span id="total-score" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">完美:</span>
+                            <span id="perfect-count" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">良好:</span>
+                            <span id="good-count" class="stat-value">0</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="score-breakdown">
                     <h4>评分详情</h4>
                     <div class="score-metrics">
@@ -133,6 +181,18 @@
                             <span class="metric-name">持续时间:</span>
                             <span id="duration-score" class="metric-value">0s</span>
                         </div>
+                        <div class="metric">
+                            <span class="metric-name">奖励倍数:</span>
+                            <span id="streak-bonus" class="metric-value">1.0x</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 成就显示 -->
+                <div class="achievements-panel">
+                    <h4>🏆 最新成就</h4>
+                    <div id="achievements-list" class="achievements-list">
+                        <span class="no-achievements">暂无成就</span>
                     </div>
                 </div>
             </div>

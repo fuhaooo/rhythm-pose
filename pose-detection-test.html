@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>姿态检测测试 - 多种方法</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        h1 { color: #333; text-align: center; }
+        .method-section { margin: 20px 0; padding: 15px; border: 2px solid #ddd; border-radius: 8px; }
+        .method-section.active { border-color: #007bff; background: #f8f9ff; }
+        .controls { text-align: center; margin: 15px 0; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .video-container { text-align: center; margin: 20px 0; }
+        canvas, video { border: 2px solid #333; margin: 10px; max-width: 100%; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .log { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 姿态检测测试 - 多种方法对比</h1>
+        
+        <div class="controls">
+            <button class="btn-primary" onclick="initCamera()">启用摄像头</button>
+            <button class="btn-warning" onclick="clearConsole()">清空控制台</button>
+        </div>
+
+        <div class="video-container">
+            <video id="video" width="640" height="480" autoplay muted playsinline style="display:none;"></video>
+            <canvas id="canvas" width="640" height="480"></canvas>
+        </div>
+
+        <div class="status info" id="status">准备就绪 - 点击启用摄像头开始测试</div>
+
+        <!-- 方法1: ml5.js PoseNet -->
+        <div class="method-section" id="method1">
+            <h3>方法1: ml5.js PoseNet</h3>
+            <div class="controls">
+                <button class="btn-success" onclick="testML5PoseNet()">测试 ml5.js</button>
+                <button class="btn-danger" onclick="stopML5()">停止</button>
+            </div>
+            <div class="log" id="log1">等待测试...</div>
+        </div>
+
+        <!-- 方法2: TensorFlow.js 直接调用 -->
+        <div class="method-section" id="method2">
+            <h3>方法2: TensorFlow.js PoseNet</h3>
+            <div class="controls">
+                <button class="btn-success" onclick="testTensorFlowPoseNet()">测试 TensorFlow.js</button>
+                <button class="btn-danger" onclick="stopTensorFlow()">停止</button>
+            </div>
+            <div class="log" id="log2">等待测试...</div>
+        </div>
+
+        <!-- 方法3: MediaPipe Pose -->
+        <div class="method-section" id="method3">
+            <h3>方法3: MediaPipe Pose</h3>
+            <div class="controls">
+                <button class="btn-success" onclick="testMediaPipe()">测试 MediaPipe</button>
+                <button class="btn-danger" onclick="stopMediaPipe()">停止</button>
+            </div>
+            <div class="log" id="log3">等待测试...</div>
+        </div>
+    </div>
+
+    <!-- 加载必要的库 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.0.0/dist/pose-detection.min.js"></script>
+    <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
+
+    <script>
+        let video, canvas, ctx;
+        let currentDetector = null;
+        let animationId = null;
+
+        function log(message, methodId = 'status') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById(methodId === 'status' ? 'status' : `log${methodId}`);
+            if (logElement) {
+                if (methodId === 'status') {
+                    logElement.textContent = message;
+                    logElement.className = 'status info';
+                } else {
+                    logElement.textContent += `[${timestamp}] ${message}\n`;
+                    logElement.scrollTop = logElement.scrollHeight;
+                }
+            }
+            console.log(`[${methodId}] ${message}`);
+        }
+
+        async function initCamera() {
+            try {
+                log('正在启用摄像头...', 'status');
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' }
+                });
+
+                video = document.getElementById('video');
+                canvas = document.getElementById('canvas');
+                ctx = canvas.getContext('2d');
+
+                video.srcObject = stream;
+                video.autoplay = true;
+                video.muted = true;
+                video.playsInline = true;
+
+                // 强制播放视频
+                video.play().then(() => {
+                    log('视频播放成功', 'status');
+                }).catch(err => {
+                    log('视频播放失败: ' + err.message, 'status');
+                });
+
+                video.onloadedmetadata = () => {
+                    log(`视频元数据加载: ${video.videoWidth}x${video.videoHeight}`, 'status');
+                };
+
+                video.onloadeddata = () => {
+                    log('视频数据加载完成', 'status');
+                };
+
+                video.onplaying = () => {
+                    log('摄像头启用成功 - 可以开始测试各种方法', 'status');
+                    startVideoPreview();
+                };
+
+            } catch (error) {
+                log('摄像头启用失败: ' + error.message, 'status');
+                document.getElementById('status').className = 'status error';
+            }
+        }
+
+        function startVideoPreview() {
+            let frameCount = 0;
+
+            function drawFrame() {
+                if (video && video.readyState >= 2 && !video.paused) {
+                    try {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                        // 绘制测试标记确认绘制正常
+                        ctx.fillStyle = '#ff0000';
+                        ctx.beginPath();
+                        ctx.arc(50, 50, 10, 0, 2 * Math.PI);
+                        ctx.fill();
+
+                        frameCount++;
+                        if (frameCount === 1) {
+                            log('✅ 视频预览开始正常显示', 'status');
+                        }
+                    } catch (error) {
+                        log('绘制错误: ' + error.message, 'status');
+                    }
+                } else if (frameCount < 10) {
+                    log(`等待视频准备: readyState=${video?.readyState}, paused=${video?.paused}`, 'status');
+                }
+
+                if (!currentDetector) {
+                    requestAnimationFrame(drawFrame);
+                }
+            }
+
+            // 延迟启动绘制，确保视频完全准备好
+            setTimeout(drawFrame, 500);
+        }
+
+        // 方法1: ml5.js PoseNet
+        async function testML5PoseNet() {
+            try {
+                if (!video || video.readyState < 2) {
+                    log('请先启用摄像头', 1);
+                    return;
+                }
+
+                log('初始化 ml5.js PoseNet...', 1);
+                document.getElementById('method1').className = 'method-section active';
+
+                // 检查ml5版本和可用性
+                log(`ml5版本: ${ml5.version || 'unknown'}`, 1);
+                log(`ml5.poseNet可用: ${typeof ml5.poseNet !== 'undefined'}`, 1);
+
+                if (typeof ml5.poseNet === 'undefined') {
+                    log('❌ ml5.poseNet不可用，请尝试其他方法', 1);
+                    return;
+                }
+                
+                const poseNet = await ml5.poseNet(video, {
+                    architecture: 'MobileNetV1',
+                    imageScaleFactor: 0.3,
+                    outputStride: 16,
+                    flipHorizontal: false,
+                    minConfidence: 0.1,
+                    maxPoseDetections: 1,
+                    scoreThreshold: 0.1,
+                    detectionType: 'single'
+                });
+
+                log('ml5.js PoseNet 初始化成功', 1);
+                currentDetector = 'ml5';
+
+                poseNet.on('pose', (results) => {
+                    if (results && results.length > 0) {
+                        log(`检测到 ${results.length} 个姿态`, 1);
+                        console.group('🎯 ml5.js PoseNet 检测结果');
+                        console.log('结果:', results);
+                        
+                        results.forEach((result, index) => {
+                            if (result.pose && result.pose.keypoints) {
+                                console.log(`姿态 ${index + 1} - 关键点数量:`, result.pose.keypoints.length);
+                                console.table(result.pose.keypoints.map(kp => ({
+                                    部位: kp.part,
+                                    X: Math.round(kp.position.x),
+                                    Y: Math.round(kp.position.y),
+                                    置信度: Math.round(kp.score * 100) / 100
+                                })));
+                            }
+                        });
+                        console.groupEnd();
+                        
+                        // 绘制关键点
+                        drawKeypoints(results[0].pose.keypoints, '#ff0000');
+                    }
+                });
+
+            } catch (error) {
+                log('ml5.js 测试失败: ' + error.message, 1);
+                console.error('ml5.js 错误:', error);
+            }
+        }
+
+        function stopML5() {
+            currentDetector = null;
+            document.getElementById('method1').className = 'method-section';
+            log('ml5.js 检测已停止', 1);
+            startVideoPreview();
+        }
+
+        function drawKeypoints(keypoints, color = '#ff0000') {
+            ctx.fillStyle = color;
+            keypoints.forEach(keypoint => {
+                if (keypoint.score > 0.1) {
+                    ctx.beginPath();
+                    ctx.arc(keypoint.position.x, keypoint.position.y, 5, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function clearConsole() {
+            console.clear();
+            log('控制台已清空', 'status');
+        }
+
+        // 方法2: TensorFlow.js PoseNet 直接调用
+        async function testTensorFlowPoseNet() {
+            try {
+                if (!video || video.readyState < 2) {
+                    log('请先启用摄像头', 2);
+                    return;
+                }
+
+                log('初始化 TensorFlow.js PoseNet...', 2);
+                document.getElementById('method2').className = 'method-section active';
+
+                // 加载PoseNet模型
+                const net = await poseDetection.createDetector(
+                    poseDetection.SupportedModels.PoseNet,
+                    {
+                        architecture: 'MobileNetV1',
+                        outputStride: 16,
+                        inputResolution: { width: 640, height: 480 },
+                        multiplier: 0.75,
+                        quantBytes: 2
+                    }
+                );
+
+                log('TensorFlow.js PoseNet 模型加载成功', 2);
+                currentDetector = 'tensorflow';
+
+                async function detectPoses() {
+                    if (currentDetector !== 'tensorflow') return;
+
+                    try {
+                        const poses = await net.estimatePoses(video);
+
+                        if (poses && poses.length > 0) {
+                            log(`检测到 ${poses.length} 个姿态`, 2);
+
+                            console.group('🎯 TensorFlow.js PoseNet 检测结果');
+                            console.log('结果:', poses);
+
+                            poses.forEach((pose, index) => {
+                                if (pose.keypoints) {
+                                    console.log(`姿态 ${index + 1} - 关键点数量:`, pose.keypoints.length);
+                                    console.log(`姿态置信度:`, pose.score);
+                                    console.table(pose.keypoints.map(kp => ({
+                                        部位: kp.name,
+                                        X: Math.round(kp.x),
+                                        Y: Math.round(kp.y),
+                                        置信度: Math.round(kp.score * 100) / 100
+                                    })));
+                                }
+                            });
+                            console.groupEnd();
+
+                            // 绘制关键点
+                            if (video && video.readyState >= 2) {
+                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                drawTensorFlowKeypoints(poses[0].keypoints, '#00ff00');
+                            }
+                        }
+
+                        requestAnimationFrame(detectPoses);
+
+                    } catch (error) {
+                        log('检测过程出错: ' + error.message, 2);
+                        console.error('TensorFlow.js 检测错误:', error);
+                    }
+                }
+
+                detectPoses();
+
+            } catch (error) {
+                log('TensorFlow.js 测试失败: ' + error.message, 2);
+                console.error('TensorFlow.js 错误:', error);
+            }
+        }
+
+        function stopTensorFlow() {
+            currentDetector = null;
+            document.getElementById('method2').className = 'method-section';
+            log('TensorFlow.js 检测已停止', 2);
+            startVideoPreview();
+        }
+
+        function drawTensorFlowKeypoints(keypoints, color = '#00ff00') {
+            ctx.fillStyle = color;
+            keypoints.forEach(keypoint => {
+                if (keypoint.score > 0.1) {
+                    ctx.beginPath();
+                    ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // 方法3: MediaPipe Pose
+        async function testMediaPipe() {
+            try {
+                if (!video || video.readyState < 2) {
+                    log('请先启用摄像头', 3);
+                    return;
+                }
+
+                log('初始化 MediaPipe Pose...', 3);
+                document.getElementById('method3').className = 'method-section active';
+
+                // 使用TensorFlow.js的MediaPipe模型
+                const detector = await poseDetection.createDetector(
+                    poseDetection.SupportedModels.BlazePose,
+                    {
+                        runtime: 'tfjs',
+                        modelType: 'lite',
+                        enableSmoothing: true,
+                        enableSegmentation: false
+                    }
+                );
+
+                log('MediaPipe Pose 模型加载成功', 3);
+                currentDetector = 'mediapipe';
+
+                async function detectPoses() {
+                    if (currentDetector !== 'mediapipe') return;
+
+                    try {
+                        const poses = await detector.estimatePoses(video);
+
+                        if (poses && poses.length > 0) {
+                            log(`检测到 ${poses.length} 个姿态`, 3);
+
+                            console.group('🎯 MediaPipe Pose 检测结果');
+                            console.log('结果:', poses);
+
+                            poses.forEach((pose, index) => {
+                                if (pose.keypoints) {
+                                    console.log(`姿态 ${index + 1} - 关键点数量:`, pose.keypoints.length);
+                                    console.log(`姿态置信度:`, pose.score);
+                                    console.table(pose.keypoints.map(kp => ({
+                                        部位: kp.name,
+                                        X: Math.round(kp.x),
+                                        Y: Math.round(kp.y),
+                                        置信度: Math.round(kp.score * 100) / 100
+                                    })));
+                                }
+                            });
+                            console.groupEnd();
+
+                            // 绘制关键点
+                            if (video && video.readyState >= 2) {
+                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                drawMediaPipeKeypoints(poses[0].keypoints, '#0000ff');
+                            }
+                        }
+
+                        requestAnimationFrame(detectPoses);
+
+                    } catch (error) {
+                        log('检测过程出错: ' + error.message, 3);
+                        console.error('MediaPipe 检测错误:', error);
+                    }
+                }
+
+                detectPoses();
+
+            } catch (error) {
+                log('MediaPipe 测试失败: ' + error.message, 3);
+                console.error('MediaPipe 错误:', error);
+            }
+        }
+
+        function stopMediaPipe() {
+            currentDetector = null;
+            document.getElementById('method3').className = 'method-section';
+            log('MediaPipe 检测已停止', 3);
+            startVideoPreview();
+        }
+
+        function drawMediaPipeKeypoints(keypoints, color = '#0000ff') {
+            ctx.fillStyle = color;
+            keypoints.forEach(keypoint => {
+                if (keypoint.score > 0.1) {
+                    ctx.beginPath();
+                    ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

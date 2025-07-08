@@ -16,9 +16,11 @@ class HandDetector {
         
         // 手势识别配置
         this.gestureConfig = {
-            minConfidence: 0.7,
-            smoothing: 0.8,
-            gestureThreshold: 0.8
+            minConfidence: 0.6,  // 降低最小置信度阈值
+            smoothing: 0.9,      // 增加平滑度
+            gestureThreshold: 0.7, // 降低手势识别阈值
+            dynamicConfidence: true, // 启用动态置信度调整
+            qualityBonus: 0.15   // 高质量检测的置信度奖励
         };
     }
 
@@ -74,10 +76,10 @@ class HandDetector {
 
             this.handPose = await ml5.handPose(this.video, {
                 flipHorizontal: false,
-                maxContinuousChecks: 10,
-                detectionConfidence: 0.8,
-                scoreThreshold: 0.75,
-                iouThreshold: 0.3
+                maxContinuousChecks: 15,  // 增加连续检查次数
+                detectionConfidence: 0.6, // 降低检测置信度阈值
+                scoreThreshold: 0.6,      // 降低分数阈值
+                iouThreshold: 0.4         // 稍微放宽IoU阈值
             });
 
             this.handPose.on('predict', (results) => {
@@ -173,7 +175,7 @@ class HandDetector {
         }
 
         const keypoints = hand.keypoints;
-        
+
         // 获取关键点
         const thumb_tip = keypoints[4];
         const thumb_ip = keypoints[3];
@@ -197,26 +199,132 @@ class HandDetector {
         // 计算手指数量
         const fingersUp = [isThumbUp, isIndexUp, isMiddleUp, isRingUp, isPinkyUp].filter(Boolean).length;
 
-        // 手势识别逻辑
+        // 计算检测质量（基于关键点的平均置信度）
+        const avgConfidence = this.calculateAverageConfidence(keypoints);
+        const qualityBonus = this.gestureConfig.dynamicConfidence ?
+            (avgConfidence > 0.8 ? this.gestureConfig.qualityBonus : 0) : 0;
+
+        // 手势识别逻辑（提高基础置信度）
         if (isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'thumbs-up', confidence: 0.9 };
+            return { name: 'thumbs-up', confidence: Math.min(0.95 + qualityBonus, 1.0) };
         } else if (!isThumbUp && isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'peace', confidence: 0.9 };
+            return { name: 'peace', confidence: Math.min(0.95 + qualityBonus, 1.0) };
         } else if (!isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'fist', confidence: 0.9 };
+            return { name: 'fist', confidence: Math.min(0.93 + qualityBonus, 1.0) };
         } else if (fingersUp === 5) {
-            return { name: 'open-palm', confidence: 0.9 };
+            return { name: 'open-palm', confidence: Math.min(0.92 + qualityBonus, 1.0) };
         } else if (!isThumbUp && isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'pointing', confidence: 0.8 };
+            return { name: 'pointing', confidence: Math.min(0.90 + qualityBonus, 1.0) };
         } else if (isThumbUp && isIndexUp && !isMiddleUp && !isRingUp && isPinkyUp) {
-            return { name: 'rock-on', confidence: 0.8 };
+            return { name: 'rock-on', confidence: Math.min(0.88 + qualityBonus, 1.0) };
+        } else if (!isThumbUp && !isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp) {
+            return { name: 'middle-finger', confidence: Math.min(0.87 + qualityBonus, 1.0) };
+        } else if (isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
+            return { name: 'thumbs-up', confidence: Math.min(0.95 + qualityBonus, 1.0) };
+        } else if (!isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && isPinkyUp) {
+            return { name: 'pinky-up', confidence: Math.min(0.85 + qualityBonus, 1.0) };
+        } else if (isThumbUp && isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp) {
+            return { name: 'three-fingers', confidence: Math.min(0.88 + qualityBonus, 1.0) };
+        } else if (fingersUp === 4 && !isThumbUp) {
+            return { name: 'four-fingers', confidence: Math.min(0.86 + qualityBonus, 1.0) };
+        } else if (this.detectOKSign(keypoints)) {
+            return { name: 'ok-sign', confidence: Math.min(0.90 + qualityBonus, 1.0) };
+        } else if (this.detectCallMeSign(keypoints)) {
+            return { name: 'call-me', confidence: Math.min(0.85 + qualityBonus, 1.0) };
+        } else if (this.detectGunSign(keypoints)) {
+            return { name: 'gun-sign', confidence: Math.min(0.83 + qualityBonus, 1.0) };
         } else {
             // 检测挥手动作（基于手腕位置变化）
             if (this.detectWaving(hand)) {
-                return { name: 'wave', confidence: 0.7 };
+                return { name: 'wave', confidence: Math.min(0.85 + qualityBonus, 1.0) };
             }
             return { name: 'unknown', confidence: 0.3 };
         }
+    }
+
+    // 计算关键点的平均置信度
+    calculateAverageConfidence(keypoints) {
+        if (!keypoints || keypoints.length === 0) return 0;
+
+        const confidenceSum = keypoints.reduce((sum, point) => {
+            return sum + (point.confidence || point.score || 0.5);
+        }, 0);
+
+        return confidenceSum / keypoints.length;
+    }
+
+    // 检测OK手势（拇指和食指形成圆圈）
+    detectOKSign(keypoints) {
+        const thumb_tip = keypoints[4];
+        const index_tip = keypoints[8];
+        const middle_tip = keypoints[12];
+        const ring_tip = keypoints[16];
+        const pinky_tip = keypoints[20];
+
+        // 计算拇指尖和食指尖的距离
+        const distance = Math.sqrt(
+            Math.pow(thumb_tip.x - index_tip.x, 2) +
+            Math.pow(thumb_tip.y - index_tip.y, 2)
+        );
+
+        // 检查是否形成圆圈（距离较小）且其他手指伸直
+        const isCircle = distance < 30; // 像素距离
+        const otherFingersUp = middle_tip.y < keypoints[10].y &&
+                              ring_tip.y < keypoints[14].y &&
+                              pinky_tip.y < keypoints[18].y;
+
+        return isCircle && otherFingersUp;
+    }
+
+    // 检测"打电话"手势（拇指和小指伸出）
+    detectCallMeSign(keypoints) {
+        const thumb_tip = keypoints[4];
+        const thumb_ip = keypoints[3];
+        const index_tip = keypoints[8];
+        const index_pip = keypoints[6];
+        const middle_tip = keypoints[12];
+        const middle_pip = keypoints[10];
+        const ring_tip = keypoints[16];
+        const ring_pip = keypoints[14];
+        const pinky_tip = keypoints[20];
+        const pinky_pip = keypoints[18];
+
+        const isThumbUp = thumb_tip.y < thumb_ip.y;
+        const isIndexDown = index_tip.y > index_pip.y;
+        const isMiddleDown = middle_tip.y > middle_pip.y;
+        const isRingDown = ring_tip.y > ring_pip.y;
+        const isPinkyUp = pinky_tip.y < pinky_pip.y;
+
+        return isThumbUp && isIndexDown && isMiddleDown && isRingDown && isPinkyUp;
+    }
+
+    // 检测"手枪"手势（食指和拇指伸出）
+    detectGunSign(keypoints) {
+        const thumb_tip = keypoints[4];
+        const thumb_ip = keypoints[3];
+        const index_tip = keypoints[8];
+        const index_pip = keypoints[6];
+        const middle_tip = keypoints[12];
+        const middle_pip = keypoints[10];
+        const ring_tip = keypoints[16];
+        const ring_pip = keypoints[14];
+        const pinky_tip = keypoints[20];
+        const pinky_pip = keypoints[18];
+
+        const isThumbUp = thumb_tip.y < thumb_ip.y;
+        const isIndexUp = index_tip.y < index_pip.y;
+        const isMiddleDown = middle_tip.y > middle_pip.y;
+        const isRingDown = ring_tip.y > ring_pip.y;
+        const isPinkyDown = pinky_tip.y > pinky_pip.y;
+
+        // 检查拇指和食指是否呈90度角
+        const thumbVector = { x: thumb_tip.x - thumb_ip.x, y: thumb_tip.y - thumb_ip.y };
+        const indexVector = { x: index_tip.x - index_pip.x, y: index_tip.y - index_pip.y };
+
+        // 简化的角度检测
+        const isPerpendicularish = Math.abs(thumbVector.x * indexVector.x + thumbVector.y * indexVector.y) < 0.3;
+
+        return isThumbUp && isIndexUp && isMiddleDown && isRingDown && isPinkyDown && isPerpendicularish;
     }
 
     // 检测挥手动作

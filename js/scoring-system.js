@@ -8,11 +8,22 @@ class ScoringSystem {
         this.accuracyScore = 0;
         this.stabilityScore = 0;
         this.durationScore = 0;
-        
+
+        // 游戏化元素
+        this.combo = 0;              // 连击数
+        this.maxCombo = 0;           // 最大连击数
+        this.totalScore = 0;         // 总分
+        this.level = 1;              // 等级
+        this.experience = 0;         // 经验值
+        this.achievements = [];      // 成就列表
+        this.streakBonus = 1.0;      // 连击奖励倍数
+        this.perfectCount = 0;       // 完美动作计数
+        this.goodCount = 0;          // 良好动作计数
+
         // 姿态历史记录（用于稳定性计算）
         this.poseHistory = [];
         this.maxHistoryLength = 30; // 保存30帧的历史
-        
+
         // 计时器
         this.startTime = null;
         this.holdTime = 0;
@@ -61,6 +72,9 @@ class ScoringSystem {
 
         // 计算总分
         this.currentScore = this.calculateTotalScore();
+
+        // 游戏化逻辑
+        this.updateGameElements();
 
         // 更新最佳分数
         if (this.currentScore > this.bestScore) {
@@ -409,8 +423,137 @@ class ScoringSystem {
             accuracy: this.accuracyScore,
             stability: this.stabilityScore,
             duration: this.durationScore,
-            holdTime: this.holdTime
+            holdTime: this.holdTime,
+            // 游戏化数据
+            combo: this.combo,
+            maxCombo: this.maxCombo,
+            totalScore: this.totalScore,
+            level: this.level,
+            experience: this.experience,
+            achievements: this.achievements,
+            streakBonus: this.streakBonus,
+            perfectCount: this.perfectCount,
+            goodCount: this.goodCount
         };
+    }
+
+    // 更新游戏化元素
+    updateGameElements() {
+        const scoreThreshold = 80; // 良好动作阈值
+        const perfectThreshold = 95; // 完美动作阈值
+
+        if (this.currentScore >= perfectThreshold) {
+            this.combo++;
+            this.perfectCount++;
+            this.streakBonus = Math.min(this.streakBonus + 0.1, 3.0); // 最大3倍奖励
+            this.checkAchievements('perfect');
+        } else if (this.currentScore >= scoreThreshold) {
+            this.combo++;
+            this.goodCount++;
+            this.streakBonus = Math.min(this.streakBonus + 0.05, 2.0); // 最大2倍奖励
+            this.checkAchievements('good');
+        } else {
+            // 重置连击
+            if (this.combo > this.maxCombo) {
+                this.maxCombo = this.combo;
+                this.checkAchievements('combo');
+            }
+            this.combo = 0;
+            this.streakBonus = 1.0;
+        }
+
+        // 计算经验值和等级
+        const bonusScore = Math.floor(this.currentScore * this.streakBonus);
+        this.experience += bonusScore;
+        this.totalScore += bonusScore;
+
+        // 等级提升
+        const newLevel = Math.floor(this.experience / 1000) + 1;
+        if (newLevel > this.level) {
+            this.level = newLevel;
+            this.checkAchievements('levelUp');
+        }
+    }
+
+    // 检查成就
+    checkAchievements(type) {
+        const newAchievements = [];
+
+        switch (type) {
+            case 'perfect':
+                if (this.perfectCount === 1) {
+                    newAchievements.push({ name: '初次完美', description: '获得第一个完美动作', icon: '⭐' });
+                } else if (this.perfectCount === 10) {
+                    newAchievements.push({ name: '完美十连', description: '获得10个完美动作', icon: '🌟' });
+                } else if (this.perfectCount === 50) {
+                    newAchievements.push({ name: '完美大师', description: '获得50个完美动作', icon: '💫' });
+                }
+                break;
+
+            case 'combo':
+                if (this.maxCombo === 5) {
+                    newAchievements.push({ name: '连击新手', description: '达成5连击', icon: '🔥' });
+                } else if (this.maxCombo === 10) {
+                    newAchievements.push({ name: '连击高手', description: '达成10连击', icon: '⚡' });
+                } else if (this.maxCombo === 20) {
+                    newAchievements.push({ name: '连击大师', description: '达成20连击', icon: '💥' });
+                }
+                break;
+
+            case 'levelUp':
+                if (this.level === 5) {
+                    newAchievements.push({ name: '初级练习者', description: '达到5级', icon: '🥉' });
+                } else if (this.level === 10) {
+                    newAchievements.push({ name: '中级练习者', description: '达到10级', icon: '🥈' });
+                } else if (this.level === 20) {
+                    newAchievements.push({ name: '高级练习者', description: '达到20级', icon: '🥇' });
+                }
+                break;
+
+            case 'good':
+                if (this.goodCount === 20) {
+                    newAchievements.push({ name: '稳定发挥', description: '获得20个良好动作', icon: '👍' });
+                } else if (this.goodCount === 100) {
+                    newAchievements.push({ name: '持之以恒', description: '获得100个良好动作', icon: '💪' });
+                }
+                break;
+        }
+
+        // 添加新成就
+        newAchievements.forEach(achievement => {
+            if (!this.achievements.find(a => a.name === achievement.name)) {
+                this.achievements.push(achievement);
+            }
+        });
+    }
+
+    // 获取当前等级进度
+    getLevelProgress() {
+        const currentLevelExp = (this.level - 1) * 1000;
+        const nextLevelExp = this.level * 1000;
+        const progress = ((this.experience - currentLevelExp) / (nextLevelExp - currentLevelExp)) * 100;
+        return Math.min(progress, 100);
+    }
+
+    // 获取连击奖励文本
+    getComboText() {
+        if (this.combo >= 20) return '🔥 超级连击！';
+        if (this.combo >= 10) return '⚡ 连击中！';
+        if (this.combo >= 5) return '🎯 连击！';
+        return '';
+    }
+
+    // 重置游戏化数据
+    resetGameData() {
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.totalScore = 0;
+        this.level = 1;
+        this.experience = 0;
+        this.achievements = [];
+        this.streakBonus = 1.0;
+        this.perfectCount = 0;
+        this.goodCount = 0;
     }
 }
 

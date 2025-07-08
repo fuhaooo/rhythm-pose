@@ -129,6 +129,11 @@ body {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
 .btn-secondary {
     background: #6c757d;
     color: white;
@@ -299,6 +304,12 @@ body {
     border-radius: 15px;
     padding: 20px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.scoring-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
 }
 
 .score-display {
@@ -322,6 +333,36 @@ body {
     font-size: 2rem;
     font-weight: bold;
     color: #667eea;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.score-value.score-increase {
+    animation: scoreIncrease 0.6s ease-out;
+}
+
+.score-value.perfect-score {
+    color: #28a745;
+    text-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+}
+
+.score-value.good-score {
+    color: #ffc107;
+    text-shadow: 0 0 8px rgba(255, 193, 7, 0.4);
+}
+
+@keyframes scoreIncrease {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+        color: #28a745;
+        text-shadow: 0 0 15px rgba(40, 167, 69, 0.8);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
 .score-breakdown h4 {
@@ -346,6 +387,156 @@ body {
 .metric-value {
     font-weight: 600;
     color: #495057;
+}
+
+/* 游戏化元素样式 */
+.game-stats {
+    margin: 15px 0;
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 10px;
+    border: 1px solid #dee2e6;
+}
+
+.level-display {
+    margin-bottom: 10px;
+}
+
+.level-label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 1.1rem;
+}
+
+.level-progress {
+    width: 100%;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.combo-display {
+    margin: 10px 0;
+    text-align: center;
+}
+
+.combo-text {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #dc3545;
+    margin-bottom: 5px;
+    min-height: 1.5rem;
+}
+
+.combo-count {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
+.stat-item {
+    text-align: center;
+    flex: 1;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 2px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.achievements-panel {
+    margin-top: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+    border-radius: 10px;
+    border: 1px solid #ffeaa7;
+}
+
+.achievements-panel h4 {
+    margin: 0 0 10px 0;
+    color: #856404;
+    font-size: 1rem;
+}
+
+.achievements-list {
+    min-height: 40px;
+}
+
+.no-achievements {
+    color: #6c757d;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.achievement-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    margin: 5px 0;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    border-left: 4px solid #ffc107;
+    animation: achievementPop 0.5s ease-out;
+}
+
+.achievement-icon {
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.achievement-content {
+    flex: 1;
+}
+
+.achievement-name {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+}
+
+.achievement-description {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 2px;
+}
+
+@keyframes achievementPop {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 /* 底部 */

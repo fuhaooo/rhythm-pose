@@ -9,7 +9,7 @@ class RhythmPoseApp {
 
         this.isInitialized = false;
         this.isDetecting = false;
-        this.currentPoseKey = 'tree';
+        this.currentPoseKey = 'yoga-auto'; // 默认使用瑜伽自动识别
         this.currentDetectionMode = 'pose';
 
         // UI 元素
@@ -183,6 +183,8 @@ class RhythmPoseApp {
             this.toggleSkeletonDisplay(e.target.checked);
         });
 
+
+
         // 页面卸载时清理资源
         window.addEventListener('beforeunload', () => {
             this.cleanup();
@@ -273,12 +275,28 @@ class RhythmPoseApp {
             // 设置pose-detector的外部手部检测器引用
             this.poseDetector.setExternalHandDetector(this.mediaPipeHandDetector);
 
+            // 立即初始化AI模型，而不是等到开始检测时
+            console.log('正在初始化AI模型...');
+            this.updateStatus('model', '加载中...', 'loading');
+            this.elements.poseFeedback.textContent = '正在加载AI模型，请稍候...';
+
+            try {
+                await this.initAIModels();
+                console.log('AI模型初始化成功');
+                this.updateStatus('model', '已就绪', 'ready');
+                this.elements.poseFeedback.textContent = '摄像头和AI模型已就绪！现在可以开始检测了。';
+            } catch (error) {
+                console.error('AI模型初始化失败:', error);
+                this.updateStatus('model', '加载失败', 'error');
+                this.elements.poseFeedback.textContent = 'AI模型加载失败: ' + error.message;
+                throw error; // 重新抛出错误，让外层catch处理
+            }
+
             this.updateStatus('camera', '已连接', 'connected');
-            this.elements.poseFeedback.textContent = '摄像头已启用！现在可以开始检测了。';
             this.elements.startBtn.disabled = false;
             this.elements.cameraBtn.textContent = '关闭摄像头';
 
-            console.log('摄像头启用成功');
+            console.log('摄像头和AI模型启用成功');
 
         } catch (error) {
             console.error('摄像头启用失败:', error);
@@ -404,11 +422,10 @@ class RhythmPoseApp {
                 return;
             }
 
-            this.updateStatus('detection', '初始化中...', 'loading');
+            this.updateStatus('detection', '启动中...', 'loading');
             this.elements.startBtn.disabled = true;
 
-            // 初始化AI模型
-            await this.initAIModels();
+            // AI模型已经在摄像头启用时初始化了，直接开始检测
 
             // 开始检测
             console.log('开始检测，模式:', this.currentDetectionMode);
@@ -575,6 +592,32 @@ class RhythmPoseApp {
     // 切换动作
     changePose(poseKey) {
         this.currentPoseKey = poseKey;
+
+        // 处理瑜伽自动识别模式
+        if (poseKey === 'yoga-auto') {
+            this.elements.poseInstructions.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <h3 style="color: #27ae60; margin-bottom: 15px;">🧘‍♀️ 瑜伽动作自动识别</h3>
+                    <p style="color: #2c3e50; margin-bottom: 10px;">
+                        系统将自动识别您的瑜伽动作并提供实时反馈
+                    </p>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <strong>支持的瑜伽动作:</strong><br>
+                        • 山式 (Mountain Pose)<br>
+                        • 树式 (Tree Pose)<br>
+                        • 战士一式 (Warrior I)<br>
+                        • 下犬式 (Downward Dog)<br>
+                        • 平板支撑 (Plank)
+                    </div>
+                    <p style="color: #7f8c8d; font-size: 14px;">
+                        请确保全身在摄像头视野内，开始您的瑜伽练习
+                    </p>
+                </div>
+            `;
+            console.log('切换到瑜伽自动识别模式');
+            return;
+        }
+
         const pose = this.poseDefinitions.getPose(poseKey);
 
         if (pose) {
@@ -609,12 +652,82 @@ class RhythmPoseApp {
     onPoseDetected(pose) {
         if (!this.isDetecting) return;
 
-        // 评估姿态并获取分数
-        const scoreData = this.scoringSystem.evaluatePose(pose);
+        // 根据检测模式处理不同的逻辑
+        if (this.currentDetectionMode === 'pose' || this.currentDetectionMode === 'both') {
+            // 瑜伽动作自动识别模式
+            if (this.currentPoseKey === 'yoga-auto') {
+                this.performYogaPoseRecognition(pose);
+            } else {
+                // 原有的评分系统
+                const scoreData = this.scoringSystem.evaluatePose(pose);
+                this.updateScoreDisplay(scoreData);
+                this.updateFeedback(scoreData);
+            }
+        }
+    }
 
-        // 更新UI显示
-        this.updateScoreDisplay(scoreData);
-        this.updateFeedback(scoreData);
+    // 瑜伽动作识别功能
+    performYogaPoseRecognition(pose) {
+        if (!pose || !pose.pose || !pose.pose.keypoints) return;
+
+        // 使用PoseDefinitions中的瑜伽动作识别算法
+        const yogaPoseResult = this.poseDefinitions.recognizeYogaPose(pose.pose.keypoints);
+
+        // 更新瑜伽动作识别结果到UI
+        this.updateYogaPoseDisplay(yogaPoseResult);
+
+        // 在控制台输出详细信息（可选）
+        if (yogaPoseResult.confidence > 0.6) {
+            console.log('🧘‍♀️ 识别到瑜伽动作:', yogaPoseResult.name, '置信度:', Math.round(yogaPoseResult.confidence * 100) + '%');
+        }
+    }
+
+    // 更新瑜伽动作显示
+    updateYogaPoseDisplay(yogaPoseResult) {
+        // 在动作指导区域显示识别结果
+        const instructionsEl = this.elements.poseInstructions;
+        if (instructionsEl) {
+            let displayText = '';
+
+            if (yogaPoseResult.confidence > 0.6) {
+                displayText = `
+                    <div style="color: #27ae60; font-weight: bold; margin-bottom: 10px;">
+                        ✅ 识别到: ${yogaPoseResult.name}
+                    </div>
+                    <div style="color: #2c3e50; margin-bottom: 10px;">
+                        置信度: ${Math.round(yogaPoseResult.confidence * 100)}%
+                    </div>
+                    <div style="color: #7f8c8d;">
+                        ${yogaPoseResult.feedback}
+                    </div>
+                `;
+            } else {
+                displayText = `
+                    <div style="color: #e67e22; font-weight: bold; margin-bottom: 10px;">
+                        🔍 ${yogaPoseResult.name}
+                    </div>
+                    <div style="color: #7f8c8d;">
+                        ${yogaPoseResult.feedback}
+                    </div>
+                    <div style="color: #95a5a6; margin-top: 10px; font-size: 14px;">
+                        支持的瑜伽动作: 山式、树式、战士一式、下犬式、平板支撑
+                    </div>
+                `;
+            }
+
+            instructionsEl.innerHTML = displayText;
+        }
+
+        // 在反馈区域显示额外信息
+        const feedbackEl = this.elements.poseFeedback;
+        if (feedbackEl && yogaPoseResult.confidence > 0.6) {
+            feedbackEl.innerHTML = `
+                <div style="background: #d5f4e6; padding: 10px; border-radius: 5px; margin: 5px 0;">
+                    <strong>瑜伽动作反馈:</strong><br>
+                    ${yogaPoseResult.feedback}
+                </div>
+            `;
+        }
     }
 
     // 手部检测回调
@@ -823,6 +936,66 @@ class RhythmPoseApp {
         this.elements.accuracyScore.textContent = scoreData.accuracy + '%';
         this.elements.stabilityScore.textContent = scoreData.stability + '%';
         this.elements.durationScore.textContent = scoreData.holdTime.toFixed(1) + 's';
+
+        // 更新游戏化元素
+        if (scoreData.level !== undefined) {
+            this.updateGameElements(scoreData);
+        }
+    }
+
+    // 更新游戏化元素显示
+    updateGameElements(scoreData) {
+        // 更新等级和经验
+        const levelElement = document.getElementById('player-level');
+        const progressBar = document.getElementById('level-progress-bar');
+        if (levelElement) levelElement.textContent = scoreData.level;
+        if (progressBar) {
+            const progress = this.scoringSystem.getLevelProgress();
+            progressBar.style.width = progress + '%';
+        }
+
+        // 更新连击显示
+        const comboText = document.getElementById('combo-text');
+        const comboCount = document.getElementById('combo-count');
+        if (comboText) comboText.textContent = this.scoringSystem.getComboText();
+        if (comboCount) comboCount.textContent = scoreData.combo;
+
+        // 更新统计数据
+        const totalScore = document.getElementById('total-score');
+        const perfectCount = document.getElementById('perfect-count');
+        const goodCount = document.getElementById('good-count');
+        const streakBonus = document.getElementById('streak-bonus');
+
+        if (totalScore) totalScore.textContent = scoreData.totalScore;
+        if (perfectCount) perfectCount.textContent = scoreData.perfectCount;
+        if (goodCount) goodCount.textContent = scoreData.goodCount;
+        if (streakBonus) streakBonus.textContent = scoreData.streakBonus.toFixed(1) + 'x';
+
+        // 更新成就显示
+        this.updateAchievements(scoreData.achievements);
+    }
+
+    // 更新成就显示
+    updateAchievements(achievements) {
+        const achievementsList = document.getElementById('achievements-list');
+        if (!achievementsList) return;
+
+        if (achievements.length === 0) {
+            achievementsList.innerHTML = '<span class="no-achievements">暂无成就</span>';
+            return;
+        }
+
+        // 显示最新的3个成就
+        const recentAchievements = achievements.slice(-3).reverse();
+        achievementsList.innerHTML = recentAchievements.map(achievement => `
+            <div class="achievement-item">
+                <span class="achievement-icon">${achievement.icon}</span>
+                <div class="achievement-content">
+                    <div class="achievement-name">${achievement.name}</div>
+                    <div class="achievement-description">${achievement.description}</div>
+                </div>
+            </div>
+        `).join('');
     }
 
     // 更新反馈信息
@@ -902,6 +1075,8 @@ class RhythmPoseApp {
             }, 2000);
         }
     }
+
+
 }
 
 // 页面加载完成后初始化应用

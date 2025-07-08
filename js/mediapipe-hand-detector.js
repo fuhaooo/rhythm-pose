@@ -182,15 +182,32 @@ class MediaPipeHandDetector {
         if (!this.showSkeleton || !this.handResults || this.handResults.length === 0) {
             return;
         }
-        
+
         // 首次绘制时输出调试信息
         if (!this._handDrawLogged) {
             console.log('开始绘制MediaPipe手部，手部数量:', this.handResults.length);
             this._handDrawLogged = true;
         }
-        
+
         this.handResults.forEach(landmarks => {
             this.drawHand(landmarks);
+        });
+    }
+
+    // 增强版手部绘制
+    drawEnhancedHands() {
+        if (!this.showSkeleton || !this.handResults || this.handResults.length === 0) {
+            return;
+        }
+
+        // 首次绘制时输出调试信息
+        if (!this._handDrawLogged) {
+            console.log('开始绘制增强版MediaPipe手部，手部数量:', this.handResults.length);
+            this._handDrawLogged = true;
+        }
+
+        this.handResults.forEach((landmarks) => {
+            this.drawEnhancedHand(landmarks);
         });
     }
     
@@ -279,5 +296,254 @@ class MediaPipeHandDetector {
     
     setErrorCallback(callback) {
         this.onError = callback;
+    }
+
+    // 单个手部绘制
+    drawEnhancedHand(landmarks) {
+        if (!landmarks || !this.canvas) return;
+
+        const canvasWidth = this.canvas.width;
+        const canvasHeight = this.canvas.height;
+
+        // 绘制连接线（包含骨架结构）
+        this.drawEnhancedHandConnections(landmarks);
+
+        // 绘制简洁的关键点
+        landmarks.forEach((landmark) => {
+            // 绘制关键点
+            this.ctx.fillStyle = '#00ff00';
+            this.ctx.beginPath();
+            this.ctx.arc(
+                canvasWidth - landmark.x * canvasWidth,  // 镜像翻转
+                landmark.y * canvasHeight,
+                3, 0, 2 * Math.PI
+            );
+            this.ctx.fill();
+        });
+    }
+
+    // 手部连接线绘制（正确的骨架结构）
+    drawEnhancedHandConnections(landmarks) {
+        const connections = [
+            // 手腕到手掌基部的连接
+            [0, 1], [0, 5], [0, 9], [0, 13], [0, 17],
+
+            // 拇指骨架
+            [1, 2], [2, 3], [3, 4],
+
+            // 食指骨架
+            [5, 6], [6, 7], [7, 8],
+
+            // 中指骨架
+            [9, 10], [10, 11], [11, 12],
+
+            // 无名指骨架
+            [13, 14], [14, 15], [15, 16],
+
+            // 小指骨架
+            [17, 18], [18, 19], [19, 20],
+
+            // 手掌横向连接线
+            [5, 9], [9, 13], [13, 17]
+        ];
+
+        const canvasWidth = this.canvas.width;
+        const canvasHeight = this.canvas.height;
+
+        // 设置简洁的线条样式
+        this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = '#00ddff';
+
+        connections.forEach(([startIdx, endIdx]) => {
+            const startLandmark = landmarks[startIdx];
+            const endLandmark = landmarks[endIdx];
+
+            if (startLandmark && endLandmark) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(
+                    canvasWidth - startLandmark.x * canvasWidth,
+                    startLandmark.y * canvasHeight
+                );
+                this.ctx.lineTo(
+                    canvasWidth - endLandmark.x * canvasWidth,
+                    endLandmark.y * canvasHeight
+                );
+                this.ctx.stroke();
+            }
+        });
+    }
+
+    // 绘制手部轮廓（精确外轮廓）
+    drawHandOutline(landmarks, animationTime) {
+        if (!landmarks || landmarks.length < 21) return;
+
+        const canvasWidth = this.canvas.width;
+        const canvasHeight = this.canvas.height;
+
+        // 创建手部外轮廓路径（按照手的实际外形）
+        const outlinePoints = this.calculateHandOutline(landmarks);
+
+        if (outlinePoints.length < 3) return;
+
+        // 动画效果的线条宽度和颜色
+        const animatedWidth = 3 + Math.sin(animationTime * 3) * 1;
+        const pulseAlpha = 0.7 + Math.sin(animationTime * 4) * 0.3;
+
+        // 设置轮廓样式 - 多层效果
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+
+        // 外层发光效果
+        this.ctx.strokeStyle = '#00ffff';
+        this.ctx.lineWidth = animatedWidth + 4;
+        this.ctx.globalAlpha = 0.2 * pulseAlpha;
+        this.ctx.shadowColor = '#00ffff';
+        this.ctx.shadowBlur = 25;
+
+        // 绘制平滑的手部轮廓
+        this.ctx.beginPath();
+
+        // 转换坐标并开始路径
+        const firstPoint = outlinePoints[0];
+        this.ctx.moveTo(
+            canvasWidth - firstPoint.x * canvasWidth,
+            firstPoint.y * canvasHeight
+        );
+
+        // 使用二次贝塞尔曲线创建平滑轮廓
+        for (let i = 1; i < outlinePoints.length; i++) {
+            const current = outlinePoints[i];
+            const next = outlinePoints[(i + 1) % outlinePoints.length];
+
+            const currentX = canvasWidth - current.x * canvasWidth;
+            const currentY = current.y * canvasHeight;
+            const nextX = canvasWidth - next.x * canvasWidth;
+            const nextY = next.y * canvasHeight;
+
+            // 计算控制点以创建平滑曲线
+            const controlX = (currentX + nextX) / 2;
+            const controlY = (currentY + nextY) / 2;
+
+            this.ctx.quadraticCurveTo(currentX, currentY, controlX, controlY);
+        }
+
+        this.ctx.closePath();
+        this.ctx.stroke();
+
+        // 中层轮廓
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = animatedWidth;
+        this.ctx.globalAlpha = 0.6 * pulseAlpha;
+        this.ctx.shadowBlur = 15;
+        this.ctx.stroke();
+
+        // 内层核心轮廓
+        this.ctx.strokeStyle = '#00ffff';
+        this.ctx.lineWidth = animatedWidth - 1;
+        this.ctx.globalAlpha = pulseAlpha;
+        this.ctx.shadowBlur = 8;
+        this.ctx.stroke();
+
+        // 重置效果
+        this.ctx.shadowBlur = 0;
+        this.ctx.globalAlpha = 1.0;
+    }
+
+    // 计算手部精确外轮廓点（改进的手形轮廓）
+    calculateHandOutline(landmarks) {
+        const outlinePoints = [];
+
+        // 从手腕开始，按顺时针方向构建轮廓
+        outlinePoints.push(landmarks[0]); // 手腕
+
+        // 拇指侧轮廓
+        outlinePoints.push(landmarks[1]); // 拇指根部
+        outlinePoints.push(landmarks[2]); // 拇指第一关节
+        outlinePoints.push(landmarks[3]); // 拇指第二关节
+        outlinePoints.push(landmarks[4]); // 拇指尖
+
+        // 从拇指尖到食指尖的过渡
+        const thumbToIndex = this.interpolatePoint(landmarks[4], landmarks[8], 0.5);
+        outlinePoints.push(thumbToIndex);
+
+        // 手指尖轮廓
+        outlinePoints.push(landmarks[8]);  // 食指尖
+        outlinePoints.push(landmarks[12]); // 中指尖
+        outlinePoints.push(landmarks[16]); // 无名指尖
+        outlinePoints.push(landmarks[20]); // 小指尖
+
+        // 小指侧轮廓
+        outlinePoints.push(landmarks[19]); // 小指第二关节
+        outlinePoints.push(landmarks[18]); // 小指第一关节
+        outlinePoints.push(landmarks[17]); // 小指根部
+
+        // 手掌底部轮廓
+        const palmBottom1 = this.interpolatePoint(landmarks[17], landmarks[0], 0.25);
+        const palmBottom2 = this.interpolatePoint(landmarks[17], landmarks[0], 0.5);
+        const palmBottom3 = this.interpolatePoint(landmarks[17], landmarks[0], 0.75);
+
+        outlinePoints.push(palmBottom1);
+        outlinePoints.push(palmBottom2);
+        outlinePoints.push(palmBottom3);
+
+        return outlinePoints;
+    }
+
+    // 凸包算法（Graham扫描法）
+    convexHull(points) {
+        if (points.length < 3) return points;
+
+        // 找到最下方的点（y最大），如果有多个则选择最左边的
+        let bottom = 0;
+        for (let i = 1; i < points.length; i++) {
+            if (points[i].y > points[bottom].y ||
+                (points[i].y === points[bottom].y && points[i].x < points[bottom].x)) {
+                bottom = i;
+            }
+        }
+
+        // 将最下方的点移到第一个位置
+        [points[0], points[bottom]] = [points[bottom], points[0]];
+
+        // 按极角排序
+        const p0 = points[0];
+        points.slice(1).sort((a, b) => {
+            const angleA = Math.atan2(a.y - p0.y, a.x - p0.x);
+            const angleB = Math.atan2(b.y - p0.y, b.x - p0.x);
+            return angleA - angleB;
+        });
+
+        // Graham扫描
+        const hull = [points[0], points[1]];
+
+        for (let i = 2; i < points.length; i++) {
+            while (hull.length > 1 &&
+                   this.crossProduct(hull[hull.length-2], hull[hull.length-1], points[i]) <= 0) {
+                hull.pop();
+            }
+            hull.push(points[i]);
+        }
+
+        return hull;
+    }
+
+    // 计算叉积（用于判断转向）
+    crossProduct(o, a, b) {
+        return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    }
+
+    // 在两点之间插值
+    interpolatePoint(point1, point2, ratio) {
+        return {
+            x: point1.x + (point2.x - point1.x) * ratio,
+            y: point1.y + (point2.y - point1.y) * ratio
+        };
+    }
+
+    // 设置显示控制
+    setShowSkeleton(show) {
+        this.showSkeleton = show;
     }
 }
