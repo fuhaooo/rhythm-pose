@@ -114,7 +114,7 @@ class RhythmPoseApp {
         // 移除手部相关选项
         for (let i = modeSelect.options.length - 1; i >= 0; i--) {
             const option = modeSelect.options[i];
-            if (option.value === 'hands' || option.value === 'both') {
+            if (option.value === 'hands') {
                 modeSelect.removeChild(option);
             }
         }
@@ -348,7 +348,7 @@ class RhythmPoseApp {
         const mode = this.currentDetectionMode;
 
         // 初始化BodyPose（姿态检测）
-        if ((mode === 'pose' || mode === 'both') && !this.poseDetector.bodyPose) {
+        if (mode === 'pose' && !this.poseDetector.bodyPose) {
             console.log('开始加载BodyPose模型');
             this.updateStatus('model', '加载BodyPose...', 'loading');
             this.elements.poseFeedback.textContent = '正在加载BodyPose模型，请稍候...';
@@ -363,7 +363,7 @@ class RhythmPoseApp {
         }
 
         // 初始化手势检测
-        if ((mode === 'hands' || mode === 'both') && this.handDetectionSupported) {
+        if (mode === 'hands' && this.handDetectionSupported) {
             console.log('开始加载手势检测模型');
             this.updateStatus('model', '加载手势检测...', 'loading');
             this.elements.poseFeedback.textContent = '正在加载手势检测模型，请稍候...';
@@ -383,7 +383,7 @@ class RhythmPoseApp {
         }
 
         // 初始化MediaPipe手部检测
-        if (mode === 'hands' || mode === 'both') {
+        if (mode === 'hands') {
             console.log('开始加载MediaPipe手部检测模型');
             this.updateStatus('model', '加载MediaPipe手部检测...', 'loading');
             this.elements.poseFeedback.textContent = '正在加载MediaPipe手部检测模型，请稍候...';
@@ -439,7 +439,7 @@ class RhythmPoseApp {
             let detectionStarted = false;
 
             // 启动姿态检测
-            if (this.currentDetectionMode === 'pose' || this.currentDetectionMode === 'both') {
+            if (this.currentDetectionMode === 'pose') {
                 if (this.poseDetector.startDetection()) {
                     detectionStarted = true;
                     console.log('姿态检测已启动');
@@ -556,7 +556,7 @@ class RhythmPoseApp {
         const poseSelect = this.elements.poseSelect;
         poseSelect.innerHTML = '';
 
-        if (mode === 'pose' || mode === 'both') {
+        if (mode === 'pose') {
             // 人体姿势动作
             const poseOptions = [
                 { value: 'tree', text: '树式 (瑜伽)' },
@@ -573,7 +573,7 @@ class RhythmPoseApp {
             });
         }
 
-        if (mode === 'hands' || mode === 'both') {
+        if (mode === 'hands') {
             // 手部动作
             const handOptions = [
                 { value: 'wave', text: '挥手' },
@@ -662,7 +662,7 @@ class RhythmPoseApp {
         // 开始性能监控
         const scoringStartTime = performance.now();
 
-        // 只在姿态检测模式下处理（跳过both模式的额外开销）
+        // 只在姿态检测模式下处理
         if (this.currentDetectionMode === 'pose') {
             // 瑜伽动作自动识别模式
             if (this.currentPoseKey === 'yoga-auto') {

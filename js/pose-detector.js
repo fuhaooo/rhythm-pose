@@ -181,7 +181,7 @@ class PoseDetector {
         console.log('ml5.js版本:', ml5.version || 'unknown');
 
         // 检查所需的功能 (0.12.2版本API)
-        if (this.detectionMode === 'pose' || this.detectionMode === 'both') {
+        if (this.detectionMode === 'pose') {
             if (typeof ml5.poseNet !== 'function') {
                 throw new Error('ml5.poseNet功能不可用，请检查ml5.js版本');
             }
