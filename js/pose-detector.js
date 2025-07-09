@@ -162,10 +162,8 @@ class PoseDetector {
             // 恢复画布状态
             this.ctx.restore();
 
-            // 在预览模式下，如果有姿态数据且开启了骨骼显示，也绘制骨骼
-            if (this.showSkeleton && this.poses.length > 0) {
-                this.drawPose(this.poses[0]);
-            }
+            // 在预览模式下不绘制姿态数据，只显示纯净的视频画面
+            // 姿态数据只在检测模式下显示
 
             // 如果不在检测模式，继续绘制预览
             if (!this.isDetecting) {
@@ -643,10 +641,44 @@ class PoseDetector {
             this.tensorflowDetectionId = null;
         }
 
+        // 清除姿态数据，确保关键点不再显示
+        this.poses = [];
+
+        // 清除画布上的关键点，只显示视频
+        this.clearCanvasAndDrawVideo();
+
         // 重新启动预览循环
         this.drawVideoFrame();
 
         console.log('检测已停止，恢复预览模式');
+    }
+
+    // 清除画布并只绘制视频（无关键点）
+    clearCanvasAndDrawVideo() {
+        if (!this.canvas || !this.ctx || !this.video || this.video.readyState < 2) {
+            return;
+        }
+
+        try {
+            // 清除整个画布
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            // 保存当前画布状态
+            this.ctx.save();
+
+            // 水平翻转画布以取消镜像效果
+            this.ctx.scale(-1, 1);
+            this.ctx.translate(-this.canvas.width, 0);
+
+            // 只绘制视频帧，不绘制任何关键点
+            this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+
+            // 恢复画布状态
+            this.ctx.restore();
+
+        } catch (error) {
+            console.error('清除画布失败:', error);
+        }
     }
 
     // 优化的绘制循环（添加FPS限制和性能监控）
