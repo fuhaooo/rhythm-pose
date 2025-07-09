@@ -35,6 +35,9 @@ class PoseDetector {
             minConfidence: 0.5
         };
 
+        // 性能优化模式
+        this.performanceMode = true; // 启用性能优化
+
         // 动画帧ID
         this.animationFrameId = null;
         this.previewFrameId = null;
@@ -236,13 +239,19 @@ class PoseDetector {
             console.log('- ml5:', typeof ml5);
             console.log('- ml5.poseNet:', typeof ml5?.poseNet);
 
-            // 优先尝试 TensorFlow.js PoseNet
+            // 优先尝试 MediaPipe Pose（性能最佳）
             if (typeof window.poseDetection !== 'undefined') {
+                console.log('使用 MediaPipe Pose（高性能模式）...');
+                await this.initMediaPipePose();
+                return this.detector;
+            }
+            // 备选方案：TensorFlow.js PoseNet
+            else if (typeof window.poseDetection !== 'undefined') {
                 console.log('使用 TensorFlow.js PoseNet...');
                 await this.initTensorFlowPoseNet();
                 return this.detector;
             }
-            // 备选方案：ml5.js PoseNet
+            // 最后备选：ml5.js PoseNet
             else if (typeof ml5 !== 'undefined' && typeof ml5.poseNet === 'function') {
                 console.log('使用 ml5.js PoseNet...');
                 await this.initML5PoseNet();
@@ -258,7 +267,24 @@ class PoseDetector {
         }
     }
 
-    // TensorFlow.js PoseNet 初始化
+    // MediaPipe Pose 初始化（高性能模式）
+    async initMediaPipePose() {
+        const poseDetectionLib = window.poseDetection;
+        this.detector = await poseDetectionLib.createDetector(
+            poseDetectionLib.SupportedModels.BlazePose,
+            {
+                runtime: 'tfjs',
+                modelType: 'lite',  // 使用轻量模型提高性能
+                enableSmoothing: true,
+                enableSegmentation: false  // 禁用分割以提高性能
+            }
+        );
+
+        this.detectionMethod = 'mediapipe';
+        console.log('MediaPipe Pose 初始化完成');
+    }
+
+    // TensorFlow.js PoseNet 初始化（备选方案）
     async initTensorFlowPoseNet() {
         const poseDetectionLib = window.poseDetection;
         this.detector = await poseDetectionLib.createDetector(
@@ -278,8 +304,8 @@ class PoseDetector {
         // 不在初始化时启动检测循环，等待用户点击开始检测
     }
 
-    // TensorFlow.js 检测循环（优化版本）
-    async startTensorFlowDetection() {
+    // 通用检测循环（支持MediaPipe和TensorFlow.js）
+    async startUniversalDetection() {
         // 停止之前的检测循环
         if (this.tensorflowDetectionId) {
             cancelAnimationFrame(this.tensorflowDetectionId);
@@ -287,7 +313,8 @@ class PoseDetector {
         }
 
         let lastDetectionTime = 0;
-        const detectionFPS = 15; // 降低检测频率到15FPS，减少计算负担
+        // 根据检测方法调整FPS：MediaPipe性能更好，可以用更高频率
+        const detectionFPS = this.detectionMethod === 'mediapipe' ? 20 : 10;
 
         const detect = async () => {
             if (!this.isDetecting || !this.detector || this.videoOnlyMode) {
@@ -315,31 +342,56 @@ class PoseDetector {
                 window.simpleFPSMonitor?.recordDetectionTime(detectionTime);
 
                 if (poses && poses.length > 0) {
-                    // 转换为 ml5.js 格式以保持兼容性，并调整坐标以匹配镜像翻转
-                    this.poses = poses.map(pose => ({
+                    // 优化数据转换：根据检测方法处理不同格式
+                    const canvasWidth = this.canvas.width;
+                    const firstPose = poses[0];
+
+                    // 调试：输出原始检测数据
+                    if (!this._rawDataLogged) {
+                        console.log('原始检测数据:', {
+                            method: this.detectionMethod,
+                            poseCount: poses.length,
+                            keypointCount: firstPose.keypoints?.length,
+                            firstKeypoint: firstPose.keypoints?.[0]
+                        });
+                        this._rawDataLogged = true;
+                    }
+
+                    // 根据检测方法转换数据格式
+                    let optimizedKeypoints;
+
+                    if (this.detectionMethod === 'mediapipe') {
+                        // MediaPipe格式转换（更高效）
+                        optimizedKeypoints = this.convertMediaPipeKeypoints(firstPose.keypoints, canvasWidth);
+                    } else {
+                        // TensorFlow.js格式转换
+                        optimizedKeypoints = this.convertTensorFlowKeypoints(firstPose.keypoints, canvasWidth);
+                    }
+
+                    // 只保存一个姿态，减少内存使用
+                    this.poses = [{
                         pose: {
-                            keypoints: pose.keypoints.map(kp => ({
-                                part: kp.name,
-                                position: {
-                                    x: this.canvas.width - kp.x,  // 镜像翻转X坐标
-                                    y: kp.y
-                                },
-                                score: kp.score
-                            })),
-                            score: pose.score
+                            keypoints: optimizedKeypoints,
+                            score: firstPose.score || 0.8  // MediaPipe可能没有总体score
                         }
-                    }));
+                    }];
 
                     // 调试信息（仅在首次检测时输出）
                     if (!this._firstPoseDetection) {
                         console.log('✅ 首次检测到姿态数据，姿态数量:', poses.length);
-                        console.log('姿态数据结构:', this.poses[0]);
+                        console.log('检测方法:', this.detectionMethod);
+                        console.log('原始姿态数据:', firstPose);
+                        console.log('转换后数据结构:', this.poses[0]);
                         console.log('关键点数量:', this.poses[0].pose.keypoints.length);
+                        console.log('前3个关键点:', this.poses[0].pose.keypoints.slice(0, 3));
                         this._firstPoseDetection = true;
                     }
 
-                    // 回调处理
-                    if (this.onPoseDetected) {
+                    // 优化回调处理：减少回调频率，提高性能
+                    this._callbackFrameCount = (this._callbackFrameCount || 0) + 1;
+
+                    // 只在特定帧调用回调，减少评分系统负担
+                    if (this._callbackFrameCount % 2 === 0 && this.onPoseDetected) {
                         this.onPoseDetected(this.poses[0]);
                     }
                 } else if (!this._noPoseWarning) {
@@ -358,6 +410,67 @@ class PoseDetector {
         };
 
         this.tensorflowDetectionId = requestAnimationFrame(detect);
+    }
+
+    // MediaPipe关键点转换（修复版本）
+    convertMediaPipeKeypoints(keypoints, canvasWidth) {
+        const optimizedKeypoints = new Array(keypoints.length);
+
+        for (let i = 0; i < keypoints.length; i++) {
+            const kp = keypoints[i];
+
+            // 调试：输出原始MediaPipe数据
+            if (i === 0 && !this._mediapipeDebugLogged) {
+                console.log('MediaPipe原始关键点数据:', kp);
+                this._mediapipeDebugLogged = true;
+            }
+
+            optimizedKeypoints[i] = {
+                part: this.getMediaPipePartName(i),
+                position: {
+                    // MediaPipe坐标已经是像素坐标，不需要乘以canvas尺寸
+                    x: canvasWidth - kp.x,  // 只需要镜像翻转
+                    y: kp.y
+                },
+                score: kp.visibility || kp.score || 0.8
+            };
+        }
+
+        return optimizedKeypoints;
+    }
+
+    // TensorFlow.js关键点转换（优化版本）
+    convertTensorFlowKeypoints(keypoints, canvasWidth) {
+        const optimizedKeypoints = new Array(keypoints.length);
+
+        for (let i = 0; i < keypoints.length; i++) {
+            const kp = keypoints[i];
+            optimizedKeypoints[i] = {
+                part: kp.name,
+                position: {
+                    x: canvasWidth - kp.x,  // TensorFlow.js使用像素坐标
+                    y: kp.y
+                },
+                score: kp.score
+            };
+        }
+
+        return optimizedKeypoints;
+    }
+
+    // MediaPipe关键点索引到部位名称的映射
+    getMediaPipePartName(index) {
+        const mediaPipeMapping = [
+            'nose', 'leftEyeInner', 'leftEye', 'leftEyeOuter', 'rightEyeInner',
+            'rightEye', 'rightEyeOuter', 'leftEar', 'rightEar', 'leftMouth',
+            'rightMouth', 'leftShoulder', 'rightShoulder', 'leftElbow', 'rightElbow',
+            'leftWrist', 'rightWrist', 'leftPinky', 'rightPinky', 'leftIndex',
+            'rightIndex', 'leftThumb', 'rightThumb', 'leftHip', 'rightHip',
+            'leftKnee', 'rightKnee', 'leftAnkle', 'rightAnkle', 'leftHeel',
+            'rightHeel', 'leftFootIndex', 'rightFootIndex'
+        ];
+
+        return mediaPipeMapping[index] || `point_${index}`;
     }
 
     // ml5.js PoseNet 初始化（备选方案）
@@ -466,10 +579,14 @@ class PoseDetector {
         this._firstPoseDetection = false;
         this._noPoseWarning = false;
 
-        if (this.detectionMethod === 'tensorflow') {
+        if (this.detectionMethod === 'mediapipe') {
+            console.log('MediaPipe Pose 检测已启动（高性能模式）');
+            // 启动通用检测循环
+            this.startUniversalDetection();
+        } else if (this.detectionMethod === 'tensorflow') {
             console.log('TensorFlow.js 检测已启动');
-            // 启动TensorFlow.js检测循环
-            this.startTensorFlowDetection();
+            // 启动通用检测循环
+            this.startUniversalDetection();
         } else {
             console.log('ml5.js PoseNet检测已启动（自动模式）');
         }
@@ -520,7 +637,7 @@ class PoseDetector {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
-        // 取消TensorFlow检测循环
+        // 取消通用检测循环（支持MediaPipe和TensorFlow.js）
         if (this.tensorflowDetectionId) {
             cancelAnimationFrame(this.tensorflowDetectionId);
             this.tensorflowDetectionId = null;
@@ -546,8 +663,8 @@ class PoseDetector {
         let fpsCounter = 0;
         let lastFpsTime = performance.now();
 
-        // 根据模式调整FPS：视频模式更低，检测模式稍高
-        const targetFPS = this.videoOnlyMode ? 20 : 30;
+        // 优化FPS设置：降低渲染频率，提高性能
+        const targetFPS = this.videoOnlyMode ? 15 : 20;
 
         const draw = (currentTime) => {
             if (!this.isDetecting) {
@@ -806,23 +923,40 @@ class PoseDetector {
         });
     }
 
-    // 关键点绘制（参考测试页面的绿色关键点）
+    // 关键点绘制（修复版本）
     drawEnhancedKeypoints(keypoints) {
-        this.ctx.fillStyle = '#00ff00'; // 绿色关键点，与测试页面一致
+        this.ctx.fillStyle = '#00ff00'; // 绿色关键点
         let drawnCount = 0;
-        keypoints.forEach((keypoint) => {
+        let totalCount = 0;
+
+        keypoints.forEach((keypoint, index) => {
+            totalCount++;
             const confidence = keypoint.confidence || keypoint.score || 0;
-            if (confidence > 0.1) { // 降低阈值，与测试页面一致
+
+            // 调试：输出前几个关键点的信息
+            if (index < 3 && !this._keypointDebugLogged) {
+                console.log(`关键点${index} (${keypoint.part}):`, {
+                    position: keypoint.position,
+                    confidence: confidence
+                });
+            }
+
+            if (confidence > 0.1) { // 降低阈值
                 this.ctx.beginPath();
-                this.ctx.arc(keypoint.position.x, keypoint.position.y, 5, 0, 2 * Math.PI); // 增大半径，与测试页面一致
+                this.ctx.arc(keypoint.position.x, keypoint.position.y, 6, 0, 2 * Math.PI); // 稍大的圆点
                 this.ctx.fill();
                 drawnCount++;
             }
         });
 
+        // 设置调试标志
+        if (!this._keypointDebugLogged) {
+            this._keypointDebugLogged = true;
+        }
+
         // 首次绘制时输出调试信息（减少输出）
         if (!this._keypointDrawDebugLogged && drawnCount > 0) {
-            console.log(`✅ 成功绘制 ${drawnCount}/${keypoints.length} 个姿态关键点`);
+            console.log(`✅ 成功绘制 ${drawnCount}/${totalCount} 个姿态关键点`);
             this._keypointDrawDebugLogged = true;
         }
     }

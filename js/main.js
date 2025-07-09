@@ -655,23 +655,32 @@ class RhythmPoseApp {
         console.log('切换到手势:', gestureKey);
     }
 
-    // 姿态检测回调（添加性能监控）
+    // 姿态检测回调（优化性能）
     onPoseDetected(pose) {
         if (!this.isDetecting) return;
 
         // 开始性能监控
         const scoringStartTime = performance.now();
 
-        // 根据检测模式处理不同的逻辑
-        if (this.currentDetectionMode === 'pose' || this.currentDetectionMode === 'both') {
+        // 只在姿态检测模式下处理（跳过both模式的额外开销）
+        if (this.currentDetectionMode === 'pose') {
             // 瑜伽动作自动识别模式
             if (this.currentPoseKey === 'yoga-auto') {
                 this.performYogaPoseRecognition(pose);
             } else {
-                // 原有的评分系统
-                const scoreData = this.scoringSystem.evaluatePose(pose);
-                this.updateScoreDisplay(scoreData);
-                this.updateFeedback(scoreData);
+                // 优化的评分系统调用
+                try {
+                    const scoreData = this.scoringSystem.evaluatePose(pose);
+
+                    // 减少UI更新频率
+                    this._uiUpdateCounter = (this._uiUpdateCounter || 0) + 1;
+                    if (this._uiUpdateCounter % 3 === 0) {
+                        this.updateScoreDisplay(scoreData);
+                        this.updateFeedback(scoreData);
+                    }
+                } catch (error) {
+                    console.warn('评分系统错误:', error);
+                }
             }
         }
 
