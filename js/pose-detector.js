@@ -5,6 +5,7 @@ class PoseDetector {
         this.bodyPose = null;
         this.poses = [];
         this.isDetecting = false;
+        this.videoOnlyMode = false; // 是否为仅视频模式（不进行姿势检测）
         this.canvas = null;
         this.ctx = null;
         this.videoWidth = 640;
@@ -33,6 +34,11 @@ class PoseDetector {
             enableSmoothing: true,
             minConfidence: 0.5
         };
+
+        // 动画帧ID
+        this.animationFrameId = null;
+        this.previewFrameId = null;
+        this.tensorflowDetectionId = null;
     }
 
     // 初始化摄像头
@@ -269,25 +275,55 @@ class PoseDetector {
         this.detectionMethod = 'tensorflow';
         console.log('TensorFlow.js PoseNet 初始化完成');
 
-        // 启动检测循环
-        this.startTensorFlowDetection();
+        // 不在初始化时启动检测循环，等待用户点击开始检测
     }
 
-    // TensorFlow.js 检测循环
+    // TensorFlow.js 检测循环（优化版本）
     async startTensorFlowDetection() {
+        // 停止之前的检测循环
+        if (this.tensorflowDetectionId) {
+            cancelAnimationFrame(this.tensorflowDetectionId);
+            this.tensorflowDetectionId = null;
+        }
+
+        let lastDetectionTime = 0;
+        const detectionFPS = 15; // 降低检测频率到15FPS，减少计算负担
+
         const detect = async () => {
-            if (!this.isDetecting || !this.detector) return;
+            if (!this.isDetecting || !this.detector || this.videoOnlyMode) {
+                this.tensorflowDetectionId = null;
+                return;
+            }
+
+            const currentTime = performance.now();
+
+            // 限制检测频率
+            if (currentTime - lastDetectionTime < 1000 / detectionFPS) {
+                this.tensorflowDetectionId = requestAnimationFrame(detect);
+                return;
+            }
+            lastDetectionTime = currentTime;
 
             try {
+                // 开始检测时间监控
+                const detectionStartTime = performance.now();
+
                 const poses = await this.detector.estimatePoses(this.video);
 
+                // 记录检测时间
+                const detectionTime = performance.now() - detectionStartTime;
+                window.simpleFPSMonitor?.recordDetectionTime(detectionTime);
+
                 if (poses && poses.length > 0) {
-                    // 转换为 ml5.js 格式以保持兼容性
+                    // 转换为 ml5.js 格式以保持兼容性，并调整坐标以匹配镜像翻转
                     this.poses = poses.map(pose => ({
                         pose: {
                             keypoints: pose.keypoints.map(kp => ({
                                 part: kp.name,
-                                position: { x: kp.x, y: kp.y },
+                                position: {
+                                    x: this.canvas.width - kp.x,  // 镜像翻转X坐标
+                                    y: kp.y
+                                },
                                 score: kp.score
                             })),
                             score: pose.score
@@ -311,14 +347,17 @@ class PoseDetector {
                     this._noPoseWarning = true;
                 }
 
-                requestAnimationFrame(detect);
+                this.tensorflowDetectionId = requestAnimationFrame(detect);
 
             } catch (error) {
                 console.error('TensorFlow.js 检测错误:', error);
+                if (this.isDetecting) {
+                    this.tensorflowDetectionId = requestAnimationFrame(detect);
+                }
             }
         };
 
-        detect();
+        this.tensorflowDetectionId = requestAnimationFrame(detect);
     }
 
     // ml5.js PoseNet 初始化（备选方案）
@@ -338,7 +377,20 @@ class PoseDetector {
 
         // 设置事件监听器
         this.bodyPose.on('pose', (results) => {
-            this.poses = results;
+            // 调整坐标以匹配镜像翻转的绘制
+            this.poses = results.map(result => ({
+                ...result,
+                pose: {
+                    ...result.pose,
+                    keypoints: result.pose.keypoints.map(kp => ({
+                        ...kp,
+                        position: {
+                            x: this.canvas.width - kp.position.x,  // 镜像翻转X坐标
+                            y: kp.position.y
+                        }
+                    }))
+                }
+            }));
 
             // 调试信息（仅在首次检测时输出）
             if (results.length > 0 && !this._firstPoseDetection) {
@@ -399,12 +451,7 @@ class PoseDetector {
         console.log('canvas:', !!this.canvas, 'ctx:', !!this.ctx);
 
         this.isDetecting = true;
-
-        if (this.detectionMethod === 'tensorflow') {
-            console.log('TensorFlow.js 检测已启动（自动模式）');
-        } else {
-            console.log('ml5.js PoseNet检测已启动（自动模式）');
-        }
+        this.videoOnlyMode = false; // 标记为完整检测模式
 
         // 停止预览循环
         if (this.previewFrameId) {
@@ -412,16 +459,53 @@ class PoseDetector {
             this.previewFrameId = null;
         }
 
-        this.isDetecting = true;
         // 重置调试标志
         this._noPoseWarningLogged = false;
         this._skeletonDisabledLogged = false;
         this._handDrawLogged = false;
+        this._firstPoseDetection = false;
+        this._noPoseWarning = false;
+
+        if (this.detectionMethod === 'tensorflow') {
+            console.log('TensorFlow.js 检测已启动');
+            // 启动TensorFlow.js检测循环
+            this.startTensorFlowDetection();
+        } else {
+            console.log('ml5.js PoseNet检测已启动（自动模式）');
+        }
 
         // 启动优化的绘制循环
         this.startOptimizedDrawLoop();
 
         console.log('检测已启动');
+        return true;
+    }
+
+    // 仅启动视频绘制模式（用于手部检测模式）
+    startVideoOnlyMode() {
+        if (!this.video) {
+            console.error('摄像头未初始化');
+            return false;
+        }
+
+        console.log('启动视频绘制模式（不进行姿势检测）');
+
+        this.isDetecting = true;
+        this.videoOnlyMode = true; // 标记为仅视频模式
+
+        // 停止预览循环
+        if (this.previewFrameId) {
+            cancelAnimationFrame(this.previewFrameId);
+            this.previewFrameId = null;
+        }
+
+        // 清空姿态数据
+        this.poses = [];
+
+        // 启动仅视频的绘制循环
+        this.startOptimizedDrawLoop();
+
+        console.log('视频绘制模式已启动');
         return true;
     }
 
@@ -436,6 +520,11 @@ class PoseDetector {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
+        // 取消TensorFlow检测循环
+        if (this.tensorflowDetectionId) {
+            cancelAnimationFrame(this.tensorflowDetectionId);
+            this.tensorflowDetectionId = null;
+        }
 
         // 重新启动预览循环
         this.drawVideoFrame();
@@ -443,31 +532,54 @@ class PoseDetector {
         console.log('检测已停止，恢复预览模式');
     }
 
-    // 简化的绘制循环
+    // 优化的绘制循环（添加FPS限制和性能监控）
     startOptimizedDrawLoop() {
         // 取消之前的动画帧
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
         }
 
-        console.log('🎬 启动简化绘制循环');
+        console.log('🎬 启动优化绘制循环');
 
         let frameCount = 0;
+        let lastFrameTime = 0;
+        let fpsCounter = 0;
+        let lastFpsTime = performance.now();
 
-        const draw = () => {
+        // 根据模式调整FPS：视频模式更低，检测模式稍高
+        const targetFPS = this.videoOnlyMode ? 20 : 30;
+
+        const draw = (currentTime) => {
             if (!this.isDetecting) {
                 console.log('🛑 绘制循环停止');
                 this.animationFrameId = null;
                 return;
             }
 
-            // 直接绘制，不限制帧率
-            this.drawFrame();
-            frameCount++;
+            // FPS限制 - 减少绘制频率
+            if (currentTime - lastFrameTime < 1000 / targetFPS) {
+                this.animationFrameId = requestAnimationFrame(draw);
+                return;
+            }
+            lastFrameTime = currentTime;
 
-            // 每60帧输出一次调试信息
-            if (frameCount % 60 === 0) {
-                console.log(`🎥 绘制帧数: ${frameCount}, 姿态数量: ${this.poses.length}`);
+            // 绘制当前帧（添加渲染时间监控）
+            const renderStartTime = performance.now();
+            this.drawFrame();
+            const renderTime = performance.now() - renderStartTime;
+            window.simpleFPSMonitor?.recordRenderTime(renderTime);
+
+            frameCount++;
+            fpsCounter++;
+
+            // 每秒计算一次实际FPS
+            if (currentTime - lastFpsTime >= 1000) {
+                const actualFPS = fpsCounter;
+                if (frameCount % 60 === 0) { // 每60帧输出一次
+                    console.log(`🎥 实际FPS: ${actualFPS}, 目标FPS: ${targetFPS}, 姿态数量: ${this.poses.length}`);
+                }
+                fpsCounter = 0;
+                lastFpsTime = currentTime;
             }
 
             this.animationFrameId = requestAnimationFrame(draw);
@@ -499,8 +611,8 @@ class PoseDetector {
             // 恢复画布状态
             this.ctx.restore();
 
-            // 绘制姿态（如果启用）
-            if (this.showSkeleton && this.poses.length > 0) {
+            // 绘制姿态（如果启用且不是仅视频模式）
+            if (this.showSkeleton && this.poses.length > 0 && !this.videoOnlyMode) {
                 this.drawEnhancedPose(this.poses[0]);
             }
 
@@ -518,7 +630,7 @@ class PoseDetector {
 
 
 
-    // 增强版姿态绘制（带游戏化效果）
+    // 姿态绘制（只显示关键点，参考测试页面）
     drawEnhancedPose(pose) {
         if (!pose || !this.ctx) return;
 
@@ -536,26 +648,13 @@ class PoseDetector {
         // 首次绘制时输出调试信息
         if (!this._drawDebugLogged) {
             const visibleKeypoints = keypoints.filter(kp => (kp.confidence || kp.score) > 0.5);
-            console.log(`开始绘制增强姿态，可见关键点: ${visibleKeypoints.length}/${keypoints.length}`);
+            console.log(`开始绘制姿态关键点，可见关键点: ${visibleKeypoints.length}/${keypoints.length}`);
             console.log('关键点示例:', keypoints[0]);
             this._drawDebugLogged = true;
         }
 
-        // 保存画布状态用于绘制骨骼
-        this.ctx.save();
-
-        // 应用相同的翻转变换
-        this.ctx.scale(-1, 1);
-        this.ctx.translate(-this.canvas.width, 0);
-
-        // 绘制骨架连接线
-        this.drawEnhancedSkeleton(keypoints);
-
-        // 绘制增强版关键点
+        // 只绘制关键点（不绘制骨架线）
         this.drawEnhancedKeypoints(keypoints);
-
-        // 恢复画布状态
-        this.ctx.restore();
     }
 
     // 保留原版姿态绘制（向后兼容）
@@ -707,18 +806,25 @@ class PoseDetector {
         });
     }
 
-    // 关键点绘制
+    // 关键点绘制（参考测试页面的绿色关键点）
     drawEnhancedKeypoints(keypoints) {
+        this.ctx.fillStyle = '#00ff00'; // 绿色关键点，与测试页面一致
+        let drawnCount = 0;
         keypoints.forEach((keypoint) => {
             const confidence = keypoint.confidence || keypoint.score || 0;
-            if (confidence > 0.5) {
-                // 绘制关键点
-                this.ctx.fillStyle = '#ff4444';
+            if (confidence > 0.1) { // 降低阈值，与测试页面一致
                 this.ctx.beginPath();
-                this.ctx.arc(keypoint.position.x, keypoint.position.y, 4, 0, 2 * Math.PI);
+                this.ctx.arc(keypoint.position.x, keypoint.position.y, 5, 0, 2 * Math.PI); // 增大半径，与测试页面一致
                 this.ctx.fill();
+                drawnCount++;
             }
         });
+
+        // 首次绘制时输出调试信息（减少输出）
+        if (!this._keypointDrawDebugLogged && drawnCount > 0) {
+            console.log(`✅ 成功绘制 ${drawnCount}/${keypoints.length} 个姿态关键点`);
+            this._keypointDrawDebugLogged = true;
+        }
     }
 
 

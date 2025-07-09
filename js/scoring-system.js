@@ -20,9 +20,9 @@ class ScoringSystem {
         this.perfectCount = 0;       // 完美动作计数
         this.goodCount = 0;          // 良好动作计数
 
-        // 姿态历史记录（用于稳定性计算）
+        // 姿态历史记录（用于稳定性计算）- 优化减少历史长度
         this.poseHistory = [];
-        this.maxHistoryLength = 30; // 保存30帧的历史
+        this.maxHistoryLength = 10; // 减少到10帧历史，降低内存使用
 
         // 计时器
         this.startTime = null;
@@ -56,7 +56,7 @@ class ScoringSystem {
         this.isHolding = false;
     }
 
-    // 评估姿态并计算分数
+    // 评估姿态并计算分数（优化版本）
     evaluatePose(detectedPose) {
         if (!this.currentPose || !detectedPose) {
             return this.getScoreData();
@@ -65,16 +65,29 @@ class ScoringSystem {
         // 添加到历史记录
         this.addToHistory(detectedPose);
 
-        // 计算各项分数
+        // 性能优化：减少计算频率
+        this.frameCount = (this.frameCount || 0) + 1;
+
+        // 准确度每帧计算（最重要）
         this.accuracyScore = this.calculateAccuracy(detectedPose);
-        this.stabilityScore = this.calculateStability();
-        this.durationScore = this.calculateDuration();
+
+        // 稳定性每3帧计算一次
+        if (this.frameCount % 3 === 0) {
+            this.stabilityScore = this.calculateStability();
+        }
+
+        // 持续时间每5帧计算一次
+        if (this.frameCount % 5 === 0) {
+            this.durationScore = this.calculateDuration();
+        }
 
         // 计算总分
         this.currentScore = this.calculateTotalScore();
 
-        // 游戏化逻辑
-        this.updateGameElements();
+        // 游戏化逻辑每10帧计算一次
+        if (this.frameCount % 10 === 0) {
+            this.updateGameElements();
+        }
 
         // 更新最佳分数
         if (this.currentScore > this.bestScore) {
@@ -316,26 +329,26 @@ class ScoringSystem {
         return score;
     }
 
-    // 计算稳定性分数
+    // 计算稳定性分数（优化版本）
     calculateStability() {
         if (this.poseHistory.length < this.thresholds.stabilityWindow) {
-            return 0;
+            return this.stabilityScore || 0; // 返回上次计算的值
         }
 
-        // 计算最近几帧的姿态变化
-        const recentPoses = this.poseHistory.slice(-this.thresholds.stabilityWindow);
-        let totalVariation = 0;
-        let comparisons = 0;
-
-        for (let i = 1; i < recentPoses.length; i++) {
-            const variation = this.calculatePoseVariation(recentPoses[i-1], recentPoses[i]);
-            totalVariation += variation;
-            comparisons++;
+        // 优化：只计算最近3帧的变化，而不是10帧
+        const recentPoses = this.poseHistory.slice(-3);
+        if (recentPoses.length < 2) {
+            return this.stabilityScore || 0;
         }
 
-        const averageVariation = comparisons > 0 ? totalVariation / comparisons : 100;
-        const stabilityScore = Math.max(0, 100 - averageVariation);
-        
+        // 简化计算：只比较最新的两帧
+        const variation = this.calculatePoseVariationOptimized(
+            recentPoses[recentPoses.length - 2],
+            recentPoses[recentPoses.length - 1]
+        );
+
+        const stabilityScore = Math.max(0, 100 - variation);
+
         return Math.round(stabilityScore);
     }
 
@@ -378,7 +391,18 @@ class ScoringSystem {
     }
 
     addToHistory(pose) {
-        this.poseHistory.push(pose);
+        // 优化：只保存关键信息，减少内存占用
+        const simplifiedPose = {
+            pose: {
+                keypoints: pose.pose.keypoints.filter(kp => kp.score > 0.5).map(kp => ({
+                    part: kp.part,
+                    position: { x: kp.position.x, y: kp.position.y },
+                    score: kp.score
+                }))
+            }
+        };
+
+        this.poseHistory.push(simplifiedPose);
         if (this.poseHistory.length > this.maxHistoryLength) {
             this.poseHistory.shift();
         }
@@ -396,6 +420,31 @@ class ScoringSystem {
         pose1.pose.keypoints.forEach(kp1 => {
             const kp2 = pose2.pose.keypoints.find(kp => kp.part === kp1.part);
             if (kp2 && kp1.score > 0.5 && kp2.score > 0.5) {
+                const distance = this.poseDefinitions.calculateDistance(kp1.position, kp2.position);
+                totalDistance += distance;
+                validPoints++;
+            }
+        });
+
+        return validPoints > 0 ? totalDistance / validPoints : 100;
+    }
+
+    // 优化版本的姿态变化计算 - 只计算关键点
+    calculatePoseVariationOptimized(pose1, pose2) {
+        if (!pose1.pose || !pose2.pose || !pose1.pose.keypoints || !pose2.pose.keypoints) {
+            return 100;
+        }
+
+        // 只检查关键的身体部位，减少计算量
+        const keyParts = ['leftShoulder', 'rightShoulder', 'leftHip', 'rightHip', 'leftKnee', 'rightKnee'];
+        let totalDistance = 0;
+        let validPoints = 0;
+
+        keyParts.forEach(partName => {
+            const kp1 = pose1.pose.keypoints.find(kp => kp.part === partName);
+            const kp2 = pose2.pose.keypoints.find(kp => kp.part === partName);
+
+            if (kp1 && kp2 && kp1.score > 0.5 && kp2.score > 0.5) {
                 const distance = this.poseDefinitions.calculateDistance(kp1.position, kp2.position);
                 totalDistance += distance;
                 validPoints++;

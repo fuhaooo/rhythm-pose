@@ -183,7 +183,13 @@ class RhythmPoseApp {
             this.toggleSkeletonDisplay(e.target.checked);
         });
 
-
+        // 性能监控按钮
+        const performanceBtn = document.getElementById('performance-btn');
+        if (performanceBtn) {
+            performanceBtn.addEventListener('click', () => {
+                this.togglePerformanceMonitor();
+            });
+        }
 
         // 页面卸载时清理资源
         window.addEventListener('beforeunload', () => {
@@ -442,10 +448,11 @@ class RhythmPoseApp {
 
             // 启动手势检测（仅在手势模式下）
             if (this.currentDetectionMode === 'hands') {
-                // 在手势模式下也需要启动pose-detector来提供绘制循环
-                if (this.poseDetector.startDetection()) {
+                // 手势模式下只启动手部检测，不启动姿势检测
+                // 但需要启动绘制循环来显示视频和手部检测结果
+                if (this.poseDetector.startVideoOnlyMode()) {
                     detectionStarted = true;
-                    console.log('绘制循环已启动（手势模式）');
+                    console.log('视频绘制循环已启动（手势模式）');
                 }
 
                 if (this.handDetectionSupported && this.handDetector.startDetection()) {
@@ -648,9 +655,12 @@ class RhythmPoseApp {
         console.log('切换到手势:', gestureKey);
     }
 
-    // 姿态检测回调
+    // 姿态检测回调（添加性能监控）
     onPoseDetected(pose) {
         if (!this.isDetecting) return;
+
+        // 开始性能监控
+        const scoringStartTime = performance.now();
 
         // 根据检测模式处理不同的逻辑
         if (this.currentDetectionMode === 'pose' || this.currentDetectionMode === 'both') {
@@ -664,6 +674,13 @@ class RhythmPoseApp {
                 this.updateFeedback(scoreData);
             }
         }
+
+        // 记录评分时间
+        const scoringTime = performance.now() - scoringStartTime;
+        window.simpleFPSMonitor?.recordScoringTime(scoringTime);
+
+        // 记录帧
+        window.simpleFPSMonitor?.recordFrame();
     }
 
     // 瑜伽动作识别功能
@@ -1032,11 +1049,41 @@ class RhythmPoseApp {
         this.changePose(this.currentPoseKey);
     }
 
+    // 切换性能监控
+    togglePerformanceMonitor() {
+        if (!window.simpleFPSMonitor) {
+            console.warn('FPS监控工具未加载');
+            return;
+        }
+
+        const performanceBtn = document.getElementById('performance-btn');
+
+        if (window.simpleFPSMonitor.isEnabled) {
+            window.simpleFPSMonitor.disable();
+            performanceBtn.textContent = '性能监控';
+            performanceBtn.classList.remove('btn-warning');
+            performanceBtn.classList.add('btn-info');
+        } else {
+            window.simpleFPSMonitor.enable();
+            performanceBtn.textContent = '停止监控';
+            performanceBtn.classList.remove('btn-info');
+            performanceBtn.classList.add('btn-warning');
+
+            console.log('🔍 性能监控已启用，将在控制台显示详细报告');
+        }
+    }
+
     // 清理资源
     cleanup() {
         if (this.poseDetector) {
             this.poseDetector.cleanup();
         }
+
+        // 禁用性能监控
+        if (window.performanceMonitor) {
+            window.performanceMonitor.disable();
+        }
+
         console.log('应用资源已清理');
     }
 
