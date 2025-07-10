@@ -16,9 +16,11 @@ class ScoringSystem {
         this.level = 1;              // 等级
         this.experience = 0;         // 经验值
         this.achievements = [];      // 成就列表
+        this.newAchievements = [];   // 新获得的成就（用于视觉反馈）
         this.streakBonus = 1.0;      // 连击奖励倍数
         this.perfectCount = 0;       // 完美动作计数
         this.goodCount = 0;          // 良好动作计数
+        this.levelUp = false;        // 等级提升标记
 
         // 姿态历史记录（用于稳定性计算）- 优化减少历史长度
         this.poseHistory = [];
@@ -482,24 +484,40 @@ class ScoringSystem {
             achievements: this.achievements,
             streakBonus: this.streakBonus,
             perfectCount: this.perfectCount,
-            goodCount: this.goodCount
+            goodCount: this.goodCount,
+            levelUp: this.levelUp || false,
+            newAchievements: this.newAchievements || []
         };
     }
 
-    // 更新游戏化元素
+    // 更新游戏化元素（修复评分逻辑）
     updateGameElements() {
-        const scoreThreshold = 80; // 良好动作阈值
-        const perfectThreshold = 95; // 完美动作阈值
+        const scoreThreshold = 70; // 良好动作阈值（提高要求）
+        const perfectThreshold = 90; // 完美动作阈值（提高要求）
+        const minAccuracyForPoints = 60; // 获得分数的最低准确度要求
 
-        if (this.currentScore >= perfectThreshold) {
+        // 只有在准确度达到最低要求时才能获得分数
+        if (this.accuracyScore < minAccuracyForPoints) {
+            // 重置连击，不给分数
+            if (this.combo > this.maxCombo) {
+                this.maxCombo = this.combo;
+                this.checkAchievements('combo');
+            }
+            this.combo = 0;
+            this.streakBonus = 1.0;
+            return; // 直接返回，不增加经验值
+        }
+
+        // 根据总分判断动作质量
+        if (this.currentScore >= perfectThreshold && this.accuracyScore >= 85) {
             this.combo++;
             this.perfectCount++;
-            this.streakBonus = Math.min(this.streakBonus + 0.1, 3.0); // 最大3倍奖励
+            this.streakBonus = Math.min(this.streakBonus + 0.1, 2.5); // 降低最大奖励倍数
             this.checkAchievements('perfect');
-        } else if (this.currentScore >= scoreThreshold) {
+        } else if (this.currentScore >= scoreThreshold && this.accuracyScore >= 65) {
             this.combo++;
             this.goodCount++;
-            this.streakBonus = Math.min(this.streakBonus + 0.05, 2.0); // 最大2倍奖励
+            this.streakBonus = Math.min(this.streakBonus + 0.05, 1.8); // 降低最大奖励倍数
             this.checkAchievements('good');
         } else {
             // 重置连击
@@ -511,16 +529,27 @@ class ScoringSystem {
             this.streakBonus = 1.0;
         }
 
-        // 计算经验值和等级
-        const bonusScore = Math.floor(this.currentScore * this.streakBonus);
-        this.experience += bonusScore;
-        this.totalScore += bonusScore;
+        // 计算经验值和等级（基于准确度加权）
+        const accuracyWeight = Math.max(0.3, this.accuracyScore / 100); // 准确度权重，最低30%
+        const baseScore = Math.floor(this.currentScore * accuracyWeight);
+        const bonusScore = Math.floor(baseScore * this.streakBonus);
 
-        // 等级提升
-        const newLevel = Math.floor(this.experience / 1000) + 1;
+        // 只有在达到最低准确度时才增加经验值
+        if (this.accuracyScore >= minAccuracyForPoints) {
+            this.experience += bonusScore;
+            this.totalScore += bonusScore;
+        }
+
+        // 等级提升（提高等级要求）
+        const newLevel = Math.floor(this.experience / 1500) + 1; // 提高等级要求
         if (newLevel > this.level) {
+            const oldLevel = this.level;
             this.level = newLevel;
             this.checkAchievements('levelUp');
+            // 标记等级提升用于视觉反馈
+            this.levelUp = true;
+        } else {
+            this.levelUp = false;
         }
     }
 
@@ -569,9 +598,11 @@ class ScoringSystem {
         }
 
         // 添加新成就
+        this.newAchievements = []; // 清空之前的新成就
         newAchievements.forEach(achievement => {
             if (!this.achievements.find(a => a.name === achievement.name)) {
                 this.achievements.push(achievement);
+                this.newAchievements.push(achievement); // 记录新成就用于视觉反馈
             }
         });
     }

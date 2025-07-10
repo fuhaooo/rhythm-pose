@@ -12,6 +12,9 @@ class RhythmPoseApp {
         this.customActionCreator = new CustomActionCreator(this.customActionManager, this.poseDetector);
         this.customActionManagerUI = new CustomActionManagerUI(this.customActionManager);
 
+        // 视觉反馈系统
+        this.visualFeedback = new VisualFeedbackSystem();
+
         this.isInitialized = false;
         this.isDetecting = false;
         this.currentPoseKey = 'yoga-auto'; // 默认使用瑜伽自动识别
@@ -724,6 +727,9 @@ class RhythmPoseApp {
                     if (this._uiUpdateCounter % 3 === 0) {
                         this.updateScoreDisplay(scoreData);
                         this.updateFeedback(scoreData);
+
+                        // 添加视觉反馈
+                        this.handleVisualFeedback(scoreData);
                     }
                 } catch (error) {
                     console.warn('评分系统错误:', error);
@@ -959,6 +965,9 @@ class RhythmPoseApp {
                 this.elements.poseFeedback.textContent =
                     `✅ 检测到正确手势: ${bestMatch.name} (置信度: ${(bestMatch.confidence * 100).toFixed(1)}%)`;
 
+                // 显示视觉反馈
+                this.visualFeedback.showGestureFeedback(bestMatch.name, bestMatch.confidence);
+
                 // 更新评分（简化版）
                 this.updateScoreDisplay({
                     currentScore: Math.round(bestMatch.confidence * 100),
@@ -971,6 +980,11 @@ class RhythmPoseApp {
             } else {
                 this.elements.poseFeedback.textContent =
                     `检测到手势: ${bestMatch.name}，目标手势: ${currentGesture}`;
+
+                // 显示检测到的手势反馈（即使不是目标手势）
+                if (bestMatch.confidence > 0.8) {
+                    this.visualFeedback.showGestureFeedback(bestMatch.name, bestMatch.confidence);
+                }
             }
         } else {
             this.elements.poseFeedback.textContent = '未识别的手势，请尝试标准手势';
@@ -1107,13 +1121,40 @@ class RhythmPoseApp {
 
 
 
+    // 处理视觉反馈
+    handleVisualFeedback(scoreData) {
+        // 显示姿势反馈
+        if (scoreData.accuracy > 80) {
+            this.visualFeedback.showPoseFeedback(this.currentPoseKey, scoreData.accuracy);
+        }
+
+        // 显示连击指示器
+        if (scoreData.combo > 0) {
+            this.visualFeedback.showComboIndicator(scoreData.combo);
+        }
+
+        // 检查等级提升
+        if (scoreData.levelUp) {
+            this.visualFeedback.showLevelUp(scoreData.level);
+        }
+
+        // 显示成就
+        if (scoreData.newAchievements && scoreData.newAchievements.length > 0) {
+            scoreData.newAchievements.forEach(achievement => {
+                this.visualFeedback.showAchievement(achievement);
+            });
+        }
+    }
+
     // 清理资源
     cleanup() {
         if (this.poseDetector) {
             this.poseDetector.cleanup();
         }
 
-
+        if (this.visualFeedback) {
+            this.visualFeedback.destroy();
+        }
 
         console.log('应用资源已清理');
     }

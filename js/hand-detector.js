@@ -233,6 +233,16 @@ class HandDetector {
             return { name: 'call-me', confidence: Math.min(0.85 + qualityBonus, 1.0) };
         } else if (this.detectGunSign(keypoints)) {
             return { name: 'gun-sign', confidence: Math.min(0.83 + qualityBonus, 1.0) };
+        } else if (this.detectHeartSign(keypoints)) {
+            return { name: 'heart-sign', confidence: Math.min(0.90 + qualityBonus, 1.0) };
+        } else if (this.detectSpiderSign(keypoints)) {
+            return { name: 'spider-sign', confidence: Math.min(0.85 + qualityBonus, 1.0) };
+        } else if (this.detectRockSign(keypoints)) {
+            return { name: 'rock-sign', confidence: Math.min(0.88 + qualityBonus, 1.0) };
+        } else if (this.detectPraySign(keypoints)) {
+            return { name: 'pray-sign', confidence: Math.min(0.87 + qualityBonus, 1.0) };
+        } else if (this.detectHighFive(keypoints)) {
+            return { name: 'high-five', confidence: Math.min(0.85 + qualityBonus, 1.0) };
         } else {
             // 检测挥手动作（基于手腕位置变化）
             if (this.detectWaving(hand)) {
@@ -331,14 +341,118 @@ class HandDetector {
     detectWaving(hand) {
         // 简化的挥手检测：检查手掌是否张开且在移动
         if (!hand.keypoints) return false;
-        
+
         const fingersUp = hand.keypoints.slice(4, 21).filter((point, i) => {
             const pipIndex = [3, 6, 10, 14, 18][Math.floor(i / 4)];
             const pip = hand.keypoints[pipIndex];
             return point.y < pip.y;
         }).length;
-        
+
         return fingersUp >= 4; // 至少4个手指伸直
+    }
+
+    // 检测比心手势
+    detectHeartSign(keypoints) {
+        if (!keypoints || keypoints.length < 21) return false;
+
+        const thumb_tip = keypoints[4];
+        const index_tip = keypoints[8];
+        const middle_tip = keypoints[12];
+        const ring_tip = keypoints[16];
+        const pinky_tip = keypoints[20];
+
+        // 拇指和食指接近，形成心形的上半部分
+        const thumbIndexDistance = Math.sqrt(
+            Math.pow(thumb_tip.x - index_tip.x, 2) +
+            Math.pow(thumb_tip.y - index_tip.y, 2)
+        );
+
+        // 其他手指相对较低
+        const isMiddleDown = middle_tip.y > keypoints[10].y;
+        const isRingDown = ring_tip.y > keypoints[14].y;
+        const isPinkyDown = pinky_tip.y > keypoints[18].y;
+
+        return thumbIndexDistance < 30 && isMiddleDown && isRingDown && isPinkyDown;
+    }
+
+    // 检测蜘蛛手势（五指张开并弯曲）
+    detectSpiderSign(keypoints) {
+        if (!keypoints || keypoints.length < 21) return false;
+
+        // 检查所有手指都是弯曲的
+        const fingersBent = [
+            keypoints[4].y > keypoints[3].y, // 拇指
+            keypoints[8].y > keypoints[6].y, // 食指
+            keypoints[12].y > keypoints[10].y, // 中指
+            keypoints[16].y > keypoints[14].y, // 无名指
+            keypoints[20].y > keypoints[18].y  // 小指
+        ];
+
+        return fingersBent.filter(Boolean).length >= 4;
+    }
+
+    // 检测摇滚手势（拇指、食指、小指伸直）
+    detectRockSign(keypoints) {
+        if (!keypoints || keypoints.length < 21) return false;
+
+        const thumb_tip = keypoints[4];
+        const thumb_ip = keypoints[3];
+        const index_tip = keypoints[8];
+        const index_pip = keypoints[6];
+        const middle_tip = keypoints[12];
+        const middle_pip = keypoints[10];
+        const ring_tip = keypoints[16];
+        const ring_pip = keypoints[14];
+        const pinky_tip = keypoints[20];
+        const pinky_pip = keypoints[18];
+
+        const isThumbUp = thumb_tip.y < thumb_ip.y;
+        const isIndexUp = index_tip.y < index_pip.y;
+        const isMiddleDown = middle_tip.y > middle_pip.y;
+        const isRingDown = ring_tip.y > ring_pip.y;
+        const isPinkyUp = pinky_tip.y < pinky_pip.y;
+
+        return isThumbUp && isIndexUp && isMiddleDown && isRingDown && isPinkyUp;
+    }
+
+    // 检测祈祷手势（双手合十，但这里检测单手向上）
+    detectPraySign(keypoints) {
+        if (!keypoints || keypoints.length < 21) return false;
+
+        // 检查所有手指都向上伸直
+        const fingersUp = [
+            keypoints[4].y < keypoints[3].y, // 拇指
+            keypoints[8].y < keypoints[6].y, // 食指
+            keypoints[12].y < keypoints[10].y, // 中指
+            keypoints[16].y < keypoints[14].y, // 无名指
+            keypoints[20].y < keypoints[18].y  // 小指
+        ];
+
+        // 手掌垂直向上
+        const wrist = keypoints[0];
+        const middleMcp = keypoints[9];
+        const isVertical = Math.abs(wrist.x - middleMcp.x) < 20;
+
+        return fingersUp.filter(Boolean).length >= 4 && isVertical;
+    }
+
+    // 检测击掌手势（手掌完全张开面向前方）
+    detectHighFive(keypoints) {
+        if (!keypoints || keypoints.length < 21) return false;
+
+        // 检查所有手指都伸直
+        const fingersUp = [
+            keypoints[4].y < keypoints[3].y, // 拇指
+            keypoints[8].y < keypoints[6].y, // 食指
+            keypoints[12].y < keypoints[10].y, // 中指
+            keypoints[16].y < keypoints[14].y, // 无名指
+            keypoints[20].y < keypoints[18].y  // 小指
+        ];
+
+        // 手指间距适中，表示自然张开
+        const fingerSpread = Math.abs(keypoints[8].x - keypoints[16].x);
+
+        return fingersUp.filter(Boolean).length === 5 && fingerSpread > 40;
     }
 
     // 开始检测
