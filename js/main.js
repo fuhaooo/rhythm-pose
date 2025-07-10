@@ -16,6 +16,9 @@ class RhythmPoseApp {
         this.elements = {};
 
         this.init();
+
+        // 将应用实例暴露到全局作用域，供其他模块访问
+        window.rhythmPoseApp = this;
     }
 
     // 初始化应用
@@ -553,11 +556,18 @@ class RhythmPoseApp {
         if (mode === 'pose') {
             // 人体姿势动作
             const poseOptions = [
-                { value: 'tree', text: '树式 (瑜伽)' },
-                { value: 'warrior', text: '战士式 (瑜伽)' },
-                { value: 'plank', text: '平板支撑' },
-                { value: 'squat', text: '深蹲' },
-                { value: 'jumping-jacks', text: '开合跳' }
+                { value: 'yoga-auto', text: '🧘‍♀️ 瑜伽动作自动识别' },
+                { value: 'tree', text: '🌳 树式 (瑜伽)' },
+                { value: 'warrior', text: '⚔️ 战士式 (瑜伽)' },
+                { value: 'eagle', text: '🦅 鹰式 (瑜伽)' },
+                { value: 'dancer', text: '💃 舞者式 (瑜伽)' },
+                { value: 'bow', text: '🏹 弓式 (瑜伽)' },
+                { value: 'plank', text: '📏 平板支撑' },
+                { value: 'side-plank', text: '📐 侧平板支撑' },
+                { value: 'superman', text: '🦸‍♂️ 超人式' },
+                { value: 'squat', text: '🏋️ 深蹲' },
+                { value: 'jumping-jacks', text: '🤸‍♀️ 开合跳' },
+                { value: 'diamond-hands', text: '💎 Diamond Hands' }
             ];
             poseOptions.forEach(option => {
                 const optionElement = document.createElement('option');
@@ -570,11 +580,18 @@ class RhythmPoseApp {
         if (mode === 'hands') {
             // 手部动作
             const handOptions = [
-                { value: 'wave', text: '挥手' },
-                { value: 'thumbs-up', text: '点赞' },
-                { value: 'peace', text: '比心/胜利手势' },
-                { value: 'fist', text: '握拳' },
-                { value: 'open-palm', text: '张开手掌' }
+                { value: 'wave', text: '👋 挥手' },
+                { value: 'thumbs-up', text: '👍 点赞' },
+                { value: 'peace', text: '✌️ 比心/胜利手势' },
+                { value: 'fist', text: '✊ 握拳' },
+                { value: 'open-palm', text: '🖐️ 张开手掌' },
+                { value: 'pointing', text: '👉 指向' },
+                { value: 'rock-on', text: '🤘 摇滚手势' },
+                { value: 'ok-sign', text: '👌 OK手势' },
+                { value: 'call-me', text: '🤙 打电话手势' },
+                { value: 'gun-sign', text: '🔫 手枪手势' },
+                { value: 'three-fingers', text: '🖖 三指手势' },
+                { value: 'four-fingers', text: '🖐️ 四指手势' }
             ];
             handOptions.forEach(option => {
                 const optionElement = document.createElement('option');
@@ -756,6 +773,27 @@ class RhythmPoseApp {
 
         // 更新反馈
         this.updateHandFeedback(hands, gestures);
+
+        // 如果当前检测的是手势，更新评分系统
+        if (this.currentDetectionMode === 'hands' || this.isHandGesture(this.currentPoseKey)) {
+            const handPoseData = {
+                hands: hands,
+                handGestures: gestures,
+                pose: null // 手势模式下不需要身体姿势数据
+            };
+
+            // 评估手势并更新分数
+            const scoreData = this.scoringSystem.evaluatePose(handPoseData);
+            this.updateScoreDisplay(scoreData);
+        }
+    }
+
+    // 检查是否为手势类型
+    isHandGesture(poseKey) {
+        const handGestures = ['wave', 'thumbs-up', 'peace', 'fist', 'open-palm',
+                             'pointing', 'rock-on', 'ok-sign', 'call-me', 'gun-sign',
+                             'three-fingers', 'four-fingers'];
+        return handGestures.includes(poseKey);
     }
 
     // MediaPipe手部检测回调
@@ -890,6 +928,8 @@ class RhythmPoseApp {
         }
 
         const currentGesture = this.currentPoseKey;
+
+        // 处理手势
         let bestMatch = null;
         let bestConfidence = 0;
 
@@ -905,16 +945,6 @@ class RhythmPoseApp {
             if (bestMatch.name === currentGesture) {
                 this.elements.poseFeedback.textContent =
                     `✅ 检测到正确手势: ${bestMatch.name} (置信度: ${(bestMatch.confidence * 100).toFixed(1)}%)`;
-
-                // 更新评分（简化版）
-                this.updateScoreDisplay({
-                    currentScore: Math.round(bestMatch.confidence * 100),
-                    bestScore: Math.max(this.scoringSystem.bestScore, Math.round(bestMatch.confidence * 100)),
-                    accuracy: Math.round(bestMatch.confidence * 100),
-                    stability: 85,
-                    duration: 0,
-                    holdTime: 0
-                });
             } else {
                 this.elements.poseFeedback.textContent =
                     `检测到手势: ${bestMatch.name}，目标手势: ${currentGesture}`;

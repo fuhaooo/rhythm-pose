@@ -159,13 +159,41 @@ class HandDetector {
     processHandResults(hands) {
         if (!hands || hands.length === 0) return;
 
-        // 识别手势
+        // 检查是否需要检测Diamond Hands（需要双手）
+        const currentGesture = this.getCurrentTargetGesture();
+        if (currentGesture === 'diamond-hands' && hands.length >= 2) {
+            const diamondResult = this.detectDiamondHands(hands);
+            const gestures = [{
+                name: 'diamond-hands',
+                confidence: diamondResult.confidence,
+                detected: diamondResult.detected,
+                feedback: diamondResult.feedback,
+                details: diamondResult.details
+            }];
+
+            // 触发回调
+            if (this.onHandDetected) {
+                this.onHandDetected(hands, gestures);
+            }
+            return;
+        }
+
+        // 识别常规手势
         const gestures = hands.map(hand => this.recognizeGesture(hand));
-        
+
         // 触发回调
         if (this.onHandDetected) {
             this.onHandDetected(hands, gestures);
         }
+    }
+
+    // 获取当前目标手势（需要从主应用获取）
+    getCurrentTargetGesture() {
+        // 这个方法需要与主应用集成
+        if (typeof window !== 'undefined' && window.rhythmPoseApp) {
+            return window.rhythmPoseApp.currentPoseKey;
+        }
+        return null;
     }
 
     // 识别手势
@@ -331,14 +359,223 @@ class HandDetector {
     detectWaving(hand) {
         // 简化的挥手检测：检查手掌是否张开且在移动
         if (!hand.keypoints) return false;
-        
+
         const fingersUp = hand.keypoints.slice(4, 21).filter((point, i) => {
             const pipIndex = [3, 6, 10, 14, 18][Math.floor(i / 4)];
             const pip = hand.keypoints[pipIndex];
             return point.y < pip.y;
         }).length;
-        
+
         return fingersUp >= 4; // 至少4个手指伸直
+    }
+
+    // 检测Diamond Hands手势（需要双手）
+    detectDiamondHands(hands) {
+        // 必须检测到双手
+        if (!hands || hands.length < 2) {
+            return { detected: false, confidence: 0, feedback: '需要检测到双手' };
+        }
+
+        const leftHand = hands.find(h => h.handedness === 'Left') || hands[0];
+        const rightHand = hands.find(h => h.handedness === 'Right') || hands[1];
+
+        if (!leftHand.keypoints || !rightHand.keypoints ||
+            leftHand.keypoints.length < 21 || rightHand.keypoints.length < 21) {
+            return { detected: false, confidence: 0, feedback: '手部关键点检测不完整' };
+        }
+
+        let score = 0;
+        let feedback = [];
+
+        // 1. 检查手指尖接触（形成钻石形状）
+        const fingerContactResult = this.checkFingerContact(leftHand.keypoints, rightHand.keypoints);
+        if (fingerContactResult.detected) {
+            score += 30;
+            feedback.push('✓ 手指尖接触良好');
+        } else {
+            feedback.push('✗ 手指尖需要相触形成钻石形状');
+        }
+
+        // 2. 检查手腕高度（胸前位置）
+        const wristHeightResult = this.checkWristHeight(leftHand.keypoints, rightHand.keypoints);
+        if (wristHeightResult.valid) {
+            score += 25;
+            feedback.push('✓ 手腕高度正确');
+        } else {
+            feedback.push('✗ 手腕应在胸前高度（0.3-0.7相对位置）');
+        }
+
+        // 3. 检查肘部角度（80-120度）
+        const elbowAngleResult = this.checkElbowAngles(leftHand.keypoints, rightHand.keypoints);
+        if (elbowAngleResult.valid) {
+            score += 25;
+            feedback.push('✓ 肘部角度正确');
+        } else {
+            feedback.push('✗ 肘部应张开80-120度');
+        }
+
+        // 4. 检查手势对称性
+        const symmetryResult = this.checkHandSymmetry(leftHand.keypoints, rightHand.keypoints);
+        if (symmetryResult.symmetric) {
+            score += 20;
+            feedback.push('✓ 手势对称');
+        } else {
+            feedback.push('✗ 双手应保持对称');
+        }
+
+        const confidence = score / 100;
+        const detected = confidence >= 0.75; // 75%阈值
+
+        return {
+            detected,
+            confidence,
+            score,
+            feedback: feedback.join('; '),
+            details: {
+                fingerContact: fingerContactResult,
+                wristHeight: wristHeightResult,
+                elbowAngle: elbowAngleResult,
+                symmetry: symmetryResult
+            }
+        };
+    }
+
+    // 检查手指尖接触
+    checkFingerContact(leftKeypoints, rightKeypoints) {
+        // 获取双手的指尖位置
+        const leftFingerTips = [
+            leftKeypoints[4],  // 拇指尖
+            leftKeypoints[8],  // 食指尖
+            leftKeypoints[12], // 中指尖
+            leftKeypoints[16], // 无名指尖
+            leftKeypoints[20]  // 小指尖
+        ];
+
+        const rightFingerTips = [
+            rightKeypoints[4],  // 拇指尖
+            rightKeypoints[8],  // 食指尖
+            rightKeypoints[12], // 中指尖
+            rightKeypoints[16], // 无名指尖
+            rightKeypoints[20]  // 小指尖
+        ];
+
+        let contactCount = 0;
+        let minDistance = Infinity;
+        const contactThreshold = 30; // 像素距离阈值
+
+        // 检查每个手指尖之间的距离
+        for (let i = 0; i < leftFingerTips.length; i++) {
+            for (let j = 0; j < rightFingerTips.length; j++) {
+                const distance = Math.sqrt(
+                    Math.pow(leftFingerTips[i].x - rightFingerTips[j].x, 2) +
+                    Math.pow(leftFingerTips[i].y - rightFingerTips[j].y, 2)
+                );
+
+                minDistance = Math.min(minDistance, distance);
+
+                if (distance < contactThreshold) {
+                    contactCount++;
+                }
+            }
+        }
+
+        // 至少需要2个接触点形成钻石形状
+        const detected = contactCount >= 2 && minDistance < contactThreshold;
+
+        return {
+            detected,
+            contactCount,
+            minDistance,
+            threshold: contactThreshold
+        };
+    }
+
+    // 检查手腕高度
+    checkWristHeight(leftKeypoints, rightKeypoints) {
+        const leftWrist = leftKeypoints[0];  // 手腕
+        const rightWrist = rightKeypoints[0]; // 手腕
+
+        // 计算相对高度（假设视频高度为参考）
+        const videoHeight = this.video ? this.video.videoHeight : 480;
+        const leftRelativeHeight = leftWrist.y / videoHeight;
+        const rightRelativeHeight = rightWrist.y / videoHeight;
+
+        // 检查是否在0.3-0.7范围内（胸前高度）
+        const leftValid = leftRelativeHeight >= 0.3 && leftRelativeHeight <= 0.7;
+        const rightValid = rightRelativeHeight >= 0.3 && rightRelativeHeight <= 0.7;
+
+        return {
+            valid: leftValid && rightValid,
+            leftHeight: leftRelativeHeight,
+            rightHeight: rightRelativeHeight,
+            targetRange: [0.3, 0.7]
+        };
+    }
+
+    // 检查肘部角度
+    checkElbowAngles(leftKeypoints, rightKeypoints) {
+        // 对于手部检测，我们需要估算肘部位置
+        // 使用手腕和中指根部来估算手臂方向
+        const leftWrist = leftKeypoints[0];
+        const leftMiddleMcp = leftKeypoints[9];
+        const rightWrist = rightKeypoints[0];
+        const rightMiddleMcp = rightKeypoints[9];
+
+        // 计算手臂向量（简化估算）
+        const leftArmVector = {
+            x: leftWrist.x - leftMiddleMcp.x,
+            y: leftWrist.y - leftMiddleMcp.y
+        };
+
+        const rightArmVector = {
+            x: rightWrist.x - rightMiddleMcp.x,
+            y: rightWrist.y - rightMiddleMcp.y
+        };
+
+        // 计算手臂与水平线的角度
+        const leftAngle = Math.abs(Math.atan2(leftArmVector.y, leftArmVector.x) * 180 / Math.PI);
+        const rightAngle = Math.abs(Math.atan2(rightArmVector.y, rightArmVector.x) * 180 / Math.PI);
+
+        // 检查角度是否在80-120度范围内（简化检查）
+        const leftValid = leftAngle >= 30 && leftAngle <= 150; // 放宽范围
+        const rightValid = rightAngle >= 30 && rightAngle <= 150;
+
+        return {
+            valid: leftValid && rightValid,
+            leftAngle,
+            rightAngle,
+            targetRange: [80, 120]
+        };
+    }
+
+    // 检查手势对称性
+    checkHandSymmetry(leftKeypoints, rightKeypoints) {
+        const leftWrist = leftKeypoints[0];
+        const rightWrist = rightKeypoints[0];
+
+        // 检查手腕高度差异
+        const heightDifference = Math.abs(leftWrist.y - rightWrist.y);
+        const maxHeightDiff = 50; // 像素
+
+        // 检查手腕水平距离（应该适中）
+        const horizontalDistance = Math.abs(leftWrist.x - rightWrist.x);
+        const minHorizontalDist = 100; // 最小距离
+        const maxHorizontalDist = 300; // 最大距离
+
+        const heightSymmetric = heightDifference < maxHeightDiff;
+        const distanceAppropriate = horizontalDistance >= minHorizontalDist &&
+                                   horizontalDistance <= maxHorizontalDist;
+
+        return {
+            symmetric: heightSymmetric && distanceAppropriate,
+            heightDifference,
+            horizontalDistance,
+            thresholds: {
+                maxHeightDiff,
+                minHorizontalDist,
+                maxHorizontalDist
+            }
+        };
     }
 
     // 开始检测

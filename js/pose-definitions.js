@@ -302,6 +302,61 @@ class PoseDefinitions {
                 },
                 duration: 20,
                 difficulty: 5
+            },
+
+            // 新增动作：Diamond Hands (身体姿势)
+            "diamond-hands": {
+                name: "Diamond Hands",
+                description: "双手在胸前形成钻石/三角形状，涉及整个上身姿态",
+                instructions: [
+                    "1. 双手抬至胸前高度（略低于胸部）",
+                    "2. 肘部向外张开，保持80-120度角",
+                    "3. 双手手腕靠近，形成钻石/三角形状",
+                    "4. 身体保持直立，倾斜不超过15度",
+                    "5. 保持姿势至少5秒"
+                ],
+                keyPoints: {
+                    // 手臂和肘部位置（基于身体关键点）
+                    arms: {
+                        leftElbow: {
+                            angle: { min: 80, max: 120 }, // 左肘角度
+                            position: { outward: true } // 向外张开
+                        },
+                        rightElbow: {
+                            angle: { min: 80, max: 120 }, // 右肘角度
+                            position: { outward: true } // 向外张开
+                        },
+                        symmetry: { required: true } // 双臂对称
+                    },
+                    // 手腕位置（基于身体关键点）
+                    wrists: {
+                        height: { min: 0.3, max: 0.7 }, // 相对胸部高度
+                        distance: { max: 50 }, // 双手腕最大距离（像素）
+                        centerPosition: { chest: true } // 在胸前中央
+                    },
+                    // 肩膀位置
+                    shoulders: {
+                        level: { tolerance: 20 }, // 肩膀水平度容差
+                        width: { spread: true }, // 肩膀张开
+                        stability: { required: true } // 稳定性
+                    },
+                    // 身体姿态
+                    posture: {
+                        torso: {
+                            maxTilt: 15, // 身体倾斜不超过15度
+                            upright: true // 保持直立
+                        },
+                        head: {
+                            alignment: true, // 头部对齐
+                            forward: true // 头部朝前
+                        },
+                        balance: { stable: true } // 整体平衡
+                    }
+                },
+                duration: 5, // 最少保持5秒
+                difficulty: 2, // 难度等级2
+                type: "body-pose", // 标记为身体姿势类型
+                accuracyThreshold: 75 // 75+准确度阈值
             }
         };
     }

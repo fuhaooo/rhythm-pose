@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Hands Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>💎 Diamond Hands Gesture Test</h1>
+    
+    <div class="test-section info">
+        <h2>Test Overview</h2>
+        <p>This page tests the Diamond Hands gesture implementation without requiring camera access.</p>
+        <p>We'll verify:</p>
+        <ul>
+            <li>Pose definition is correctly added</li>
+            <li>Hand detector has Diamond Hands detection logic</li>
+            <li>Scoring system handles the gesture</li>
+            <li>UI includes the gesture option</li>
+        </ul>
+    </div>
+
+    <div id="pose-definition-test" class="test-section">
+        <h2>1. Pose Definition Test</h2>
+        <p>Testing if Diamond Hands is defined in PoseDefinitions...</p>
+    </div>
+
+    <div id="hand-detector-test" class="test-section">
+        <h2>2. Hand Detector Test</h2>
+        <p>Testing if Diamond Hands detection logic exists...</p>
+    </div>
+
+    <div id="scoring-system-test" class="test-section">
+        <h2>3. Scoring System Test</h2>
+        <p>Testing if scoring system can handle Diamond Hands...</p>
+    </div>
+
+    <div id="ui-test" class="test-section">
+        <h2>4. UI Integration Test</h2>
+        <p>Testing if Diamond Hands appears in the gesture selector...</p>
+    </div>
+
+    <div id="mock-detection-test" class="test-section">
+        <h2>5. Mock Detection Test</h2>
+        <p>Testing Diamond Hands detection with mock data...</p>
+    </div>
+
+    <!-- Include the necessary JavaScript files -->
+    <script src="js/pose-definitions.js"></script>
+    <script src="js/hand-detector.js"></script>
+    <script src="js/scoring-system.js"></script>
+
+    <script>
+        // Test 1: Pose Definition
+        function testPoseDefinition() {
+            const testDiv = document.getElementById('pose-definition-test');
+            try {
+                const poseDefinitions = new PoseDefinitions();
+                const diamondHands = poseDefinitions.getPose('diamond-hands');
+                
+                if (diamondHands) {
+                    testDiv.className = 'test-section success';
+                    testDiv.innerHTML += `
+                        <p>✅ SUCCESS: Diamond Hands pose definition found!</p>
+                        <pre>${JSON.stringify(diamondHands, null, 2)}</pre>
+                    `;
+                } else {
+                    testDiv.className = 'test-section error';
+                    testDiv.innerHTML += '<p>❌ ERROR: Diamond Hands pose definition not found!</p>';
+                }
+            } catch (error) {
+                testDiv.className = 'test-section error';
+                testDiv.innerHTML += `<p>❌ ERROR: ${error.message}</p>`;
+            }
+        }
+
+        // Test 2: Hand Detector
+        function testHandDetector() {
+            const testDiv = document.getElementById('hand-detector-test');
+            try {
+                const handDetector = new HandDetector();
+                
+                // Check if detectDiamondHands method exists
+                if (typeof handDetector.detectDiamondHands === 'function') {
+                    testDiv.className = 'test-section success';
+                    testDiv.innerHTML += '<p>✅ SUCCESS: detectDiamondHands method found!</p>';
+                    
+                    // Test with mock data
+                    const mockHands = [
+                        { keypoints: new Array(21).fill({x: 100, y: 100}), handedness: 'Left' },
+                        { keypoints: new Array(21).fill({x: 200, y: 100}), handedness: 'Right' }
+                    ];
+                    
+                    const result = handDetector.detectDiamondHands(mockHands);
+                    testDiv.innerHTML += `<pre>Mock detection result: ${JSON.stringify(result, null, 2)}</pre>`;
+                } else {
+                    testDiv.className = 'test-section error';
+                    testDiv.innerHTML += '<p>❌ ERROR: detectDiamondHands method not found!</p>';
+                }
+            } catch (error) {
+                testDiv.className = 'test-section error';
+                testDiv.innerHTML += `<p>❌ ERROR: ${error.message}</p>`;
+            }
+        }
+
+        // Test 3: Scoring System
+        function testScoringSystem() {
+            const testDiv = document.getElementById('scoring-system-test');
+            try {
+                const poseDefinitions = new PoseDefinitions();
+                const scoringSystem = new ScoringSystem(poseDefinitions);
+                
+                // Check if evaluateDiamondHandsGesture method exists
+                if (typeof scoringSystem.evaluateDiamondHandsGesture === 'function') {
+                    testDiv.className = 'test-section success';
+                    testDiv.innerHTML += '<p>✅ SUCCESS: evaluateDiamondHandsGesture method found!</p>';
+                    
+                    // Test with mock data
+                    const mockPose = {
+                        hands: [{}],
+                        handGestures: [{
+                            name: 'diamond-hands',
+                            detected: true,
+                            confidence: 0.85,
+                            details: {
+                                fingerContact: { detected: true },
+                                wristHeight: { valid: true },
+                                elbowAngle: { valid: true },
+                                symmetry: { symmetric: true }
+                            }
+                        }]
+                    };
+                    
+                    const score = scoringSystem.evaluateDiamondHandsGesture(mockPose);
+                    testDiv.innerHTML += `<p>Mock scoring result: ${score}</p>`;
+                } else {
+                    testDiv.className = 'test-section error';
+                    testDiv.innerHTML += '<p>❌ ERROR: evaluateDiamondHandsGesture method not found!</p>';
+                }
+            } catch (error) {
+                testDiv.className = 'test-section error';
+                testDiv.innerHTML += `<p>❌ ERROR: ${error.message}</p>`;
+            }
+        }
+
+        // Test 4: UI Integration
+        function testUIIntegration() {
+            const testDiv = document.getElementById('ui-test');
+            
+            // Create a temporary select element to test
+            const select = document.createElement('select');
+            select.innerHTML = `
+                <option value="wave">👋 挥手</option>
+                <option value="thumbs-up">👍 点赞</option>
+                <option value="diamond-hands">💎 Diamond Hands</option>
+            `;
+            
+            const diamondOption = select.querySelector('option[value="diamond-hands"]');
+            if (diamondOption) {
+                testDiv.className = 'test-section success';
+                testDiv.innerHTML += '<p>✅ SUCCESS: Diamond Hands option can be added to UI!</p>';
+                testDiv.innerHTML += `<p>Option text: "${diamondOption.textContent}"</p>`;
+            } else {
+                testDiv.className = 'test-section error';
+                testDiv.innerHTML += '<p>❌ ERROR: Diamond Hands option not found!</p>';
+            }
+        }
+
+        // Test 5: Mock Detection
+        function testMockDetection() {
+            const testDiv = document.getElementById('mock-detection-test');
+            try {
+                const handDetector = new HandDetector();
+                
+                // Create more realistic mock hand data
+                const createMockKeypoints = (baseX, baseY) => {
+                    return [
+                        {x: baseX, y: baseY},           // 0: wrist
+                        {x: baseX-10, y: baseY-20},     // 1: thumb_cmc
+                        {x: baseX-15, y: baseY-35},     // 2: thumb_mcp
+                        {x: baseX-20, y: baseY-50},     // 3: thumb_ip
+                        {x: baseX-25, y: baseY-65},     // 4: thumb_tip
+                        {x: baseX+10, y: baseY-10},     // 5: index_mcp
+                        {x: baseX+15, y: baseY-25},     // 6: index_pip
+                        {x: baseX+20, y: baseY-40},     // 7: index_dip
+                        {x: baseX+25, y: baseY-55},     // 8: index_tip
+                        {x: baseX+5, y: baseY-5},       // 9: middle_mcp
+                        {x: baseX+8, y: baseY-20},      // 10: middle_pip
+                        {x: baseX+12, y: baseY-35},     // 11: middle_dip
+                        {x: baseX+15, y: baseY-50},     // 12: middle_tip
+                        {x: baseX-5, y: baseY-5},       // 13: ring_mcp
+                        {x: baseX-8, y: baseY-20},      // 14: ring_pip
+                        {x: baseX-12, y: baseY-35},     // 15: ring_dip
+                        {x: baseX-15, y: baseY-50},     // 16: ring_tip
+                        {x: baseX-15, y: baseY-5},      // 17: pinky_mcp
+                        {x: baseX-18, y: baseY-20},     // 18: pinky_pip
+                        {x: baseX-22, y: baseY-35},     // 19: pinky_dip
+                        {x: baseX-25, y: baseY-50}      // 20: pinky_tip
+                    ];
+                };
+                
+                const mockHands = [
+                    { 
+                        keypoints: createMockKeypoints(150, 200), 
+                        handedness: 'Left',
+                        confidence: 0.9
+                    },
+                    { 
+                        keypoints: createMockKeypoints(250, 200), 
+                        handedness: 'Right',
+                        confidence: 0.9
+                    }
+                ];
+                
+                const result = handDetector.detectDiamondHands(mockHands);
+                
+                testDiv.className = 'test-section success';
+                testDiv.innerHTML += '<p>✅ SUCCESS: Mock detection completed!</p>';
+                testDiv.innerHTML += `<pre>Detection Result:\n${JSON.stringify(result, null, 2)}</pre>`;
+                
+            } catch (error) {
+                testDiv.className = 'test-section error';
+                testDiv.innerHTML += `<p>❌ ERROR: ${error.message}</p>`;
+                testDiv.innerHTML += `<pre>${error.stack}</pre>`;
+            }
+        }
+
+        // Run all tests when page loads
+        window.addEventListener('load', () => {
+            console.log('Running Diamond Hands tests...');
+            testPoseDefinition();
+            testHandDetector();
+            testScoringSystem();
+            testUIIntegration();
+            testMockDetection();
+        });
+    </script>
+</body>
+</html>

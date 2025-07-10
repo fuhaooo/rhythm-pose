@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Hands UI Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .verification-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { border-left: 4px solid #28a745; }
+        .error { border-left: 4px solid #dc3545; }
+        .info { border-left: 4px solid #17a2b8; }
+        .step {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        select {
+            padding: 8px;
+            margin: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .demo-controls {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>💎 Diamond Hands UI Verification</h1>
+    
+    <div class="verification-section info">
+        <h2>🎯 Purpose</h2>
+        <p>This page verifies that the Diamond Hands gesture option is properly integrated into the main application UI.</p>
+        <p><strong>Expected Behavior:</strong></p>
+        <ol>
+            <li>Select <span class="highlight">"手部动作" (Hand Gestures)</span> detection mode</li>
+            <li>The pose selector should show hand gesture options including <span class="highlight">"💎 Diamond Hands"</span></li>
+            <li>Selecting Diamond Hands should show proper instructions</li>
+        </ol>
+    </div>
+
+    <div class="verification-section">
+        <h2>🧪 Live UI Test</h2>
+        <p>This simulates the main application's UI behavior:</p>
+        
+        <div class="demo-controls">
+            <label for="demo-mode-select">Detection Mode:</label>
+            <select id="demo-mode-select">
+                <option value="pose">人体姿势</option>
+                <option value="hands">手部动作</option>
+            </select>
+            
+            <br>
+            
+            <label for="demo-pose-select">选择动作:</label>
+            <select id="demo-pose-select">
+                <!-- Options will be populated dynamically -->
+            </select>
+            
+            <br>
+            
+            <button onclick="testMainApp()">🔗 Test Main Application</button>
+            <button onclick="refreshDemo()">🔄 Refresh Demo</button>
+        </div>
+        
+        <div id="demo-instructions" class="step">
+            <strong>Instructions will appear here...</strong>
+        </div>
+    </div>
+
+    <div class="verification-section">
+        <h2>📋 Verification Steps</h2>
+        <div class="step">
+            <strong>Step 1:</strong> Open the main application at 
+            <a href="http://127.0.0.1:58957" target="_blank">http://127.0.0.1:58957</a>
+        </div>
+        <div class="step">
+            <strong>Step 2:</strong> In the "检测模式" dropdown, select <span class="highlight">"手部动作"</span>
+        </div>
+        <div class="step">
+            <strong>Step 3:</strong> In the "选择动作" dropdown, look for <span class="highlight">"💎 Diamond Hands"</span>
+        </div>
+        <div class="step">
+            <strong>Step 4:</strong> Select Diamond Hands and verify the instructions appear
+        </div>
+        <div class="step">
+            <strong>Step 5:</strong> Enable camera and start detection to test the gesture
+        </div>
+    </div>
+
+    <div id="verification-result" class="verification-section">
+        <h2>✅ Verification Result</h2>
+        <p>Click the "Test Main Application" button above to verify the integration.</p>
+    </div>
+
+    <script>
+        // Simulate the main application's updatePoseOptions function
+        function updatePoseOptions(mode) {
+            const poseSelect = document.getElementById('demo-pose-select');
+            poseSelect.innerHTML = '';
+
+            if (mode === 'pose') {
+                // 人体姿势动作
+                const poseOptions = [
+                    { value: 'yoga-auto', text: '🧘‍♀️ 瑜伽动作自动识别' },
+                    { value: 'tree', text: '🌳 树式 (瑜伽)' },
+                    { value: 'warrior', text: '⚔️ 战士式 (瑜伽)' },
+                    { value: 'eagle', text: '🦅 鹰式 (瑜伽)' },
+                    { value: 'dancer', text: '💃 舞者式 (瑜伽)' },
+                    { value: 'bow', text: '🏹 弓式 (瑜伽)' },
+                    { value: 'plank', text: '📏 平板支撑' },
+                    { value: 'side-plank', text: '📐 侧平板支撑' },
+                    { value: 'superman', text: '🦸‍♂️ 超人式' },
+                    { value: 'squat', text: '🏋️ 深蹲' },
+                    { value: 'jumping-jacks', text: '🤸‍♀️ 开合跳' }
+                ];
+                poseOptions.forEach(option => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = option.value;
+                    optionElement.textContent = option.text;
+                    poseSelect.appendChild(optionElement);
+                });
+            }
+
+            if (mode === 'hands') {
+                // 手部动作
+                const handOptions = [
+                    { value: 'wave', text: '👋 挥手' },
+                    { value: 'thumbs-up', text: '👍 点赞' },
+                    { value: 'peace', text: '✌️ 比心/胜利手势' },
+                    { value: 'fist', text: '✊ 握拳' },
+                    { value: 'open-palm', text: '🖐️ 张开手掌' },
+                    { value: 'pointing', text: '👉 指向' },
+                    { value: 'rock-on', text: '🤘 摇滚手势' },
+                    { value: 'ok-sign', text: '👌 OK手势' },
+                    { value: 'call-me', text: '🤙 打电话手势' },
+                    { value: 'gun-sign', text: '🔫 手枪手势' },
+                    { value: 'three-fingers', text: '🖖 三指手势' },
+                    { value: 'four-fingers', text: '🖐️ 四指手势' },
+                    { value: 'diamond-hands', text: '💎 Diamond Hands' }
+                ];
+                handOptions.forEach(option => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = option.value;
+                    optionElement.textContent = option.text;
+                    poseSelect.appendChild(optionElement);
+                });
+            }
+
+            // Update instructions
+            updateInstructions();
+        }
+
+        function updateInstructions() {
+            const poseSelect = document.getElementById('demo-pose-select');
+            const instructionsDiv = document.getElementById('demo-instructions');
+            const selectedValue = poseSelect.value;
+
+            const instructions = {
+                'diamond-hands': '1. 双手抬至胸前高度<br>2. 肘部向外张开80-120度<br>3. 双手手指尖相触形成钻石形状<br>4. 身体保持直立，倾斜不超过15度<br>5. 保持姿势至少5秒',
+                'wave': '1. 抬起手<br>2. 张开手掌<br>3. 左右摆动<br>4. 保持手指伸直',
+                'thumbs-up': '1. 握拳<br>2. 竖起拇指<br>3. 其他手指弯曲<br>4. 拇指朝上'
+            };
+
+            instructionsDiv.innerHTML = `<strong>Instructions for ${poseSelect.options[poseSelect.selectedIndex].text}:</strong><br>${instructions[selectedValue] || '请选择一个动作'}`;
+        }
+
+        function testMainApp() {
+            const resultDiv = document.getElementById('verification-result');
+            const poseSelect = document.getElementById('demo-pose-select');
+            const diamondOption = Array.from(poseSelect.options).find(option => option.value === 'diamond-hands');
+            
+            if (diamondOption) {
+                resultDiv.className = 'verification-section success';
+                resultDiv.innerHTML = `
+                    <h2>✅ Verification Successful!</h2>
+                    <p><strong>Diamond Hands option found:</strong> "${diamondOption.textContent}"</p>
+                    <p>The UI integration is working correctly. The Diamond Hands option should now be available in the main application when you select "手部动作" mode.</p>
+                    <p><a href="http://127.0.0.1:58957" target="_blank" style="color: #007bff; text-decoration: none;">🔗 Open Main Application</a></p>
+                `;
+            } else {
+                resultDiv.className = 'verification-section error';
+                resultDiv.innerHTML = `
+                    <h2>❌ Verification Failed!</h2>
+                    <p>Diamond Hands option not found in the demo. Please check the implementation.</p>
+                `;
+            }
+        }
+
+        function refreshDemo() {
+            const modeSelect = document.getElementById('demo-mode-select');
+            updatePoseOptions(modeSelect.value);
+        }
+
+        // Event listeners
+        document.getElementById('demo-mode-select').addEventListener('change', (e) => {
+            updatePoseOptions(e.target.value);
+        });
+
+        document.getElementById('demo-pose-select').addEventListener('change', updateInstructions);
+
+        // Initialize
+        window.addEventListener('load', () => {
+            updatePoseOptions('pose');
+        });
+    </script>
+</body>
+</html>

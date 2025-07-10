@@ -99,13 +99,15 @@ class ScoringSystem {
 
     // 计算准确度分数
     calculateAccuracy(detectedPose) {
+        const poseKey = this.getCurrentPoseKey();
+
+        // 处理身体姿势类型
         if (!detectedPose.pose || !detectedPose.pose.keypoints) {
             return 0;
         }
 
         const keypoints = detectedPose.pose.keypoints;
-        const poseKey = this.getCurrentPoseKey();
-        
+
         switch (poseKey) {
             case 'tree':
                 return this.evaluateTreePose(keypoints);
@@ -117,6 +119,8 @@ class ScoringSystem {
                 return this.evaluateSquatPose(keypoints);
             case 'jumping-jacks':
                 return this.evaluateJumpingJacks(keypoints);
+            case 'diamond-hands':
+                return this.evaluateDiamondHandsPose(keypoints);
             default:
                 return 0;
         }
@@ -329,8 +333,137 @@ class ScoringSystem {
         return score;
     }
 
+    // 评估Diamond Hands身体姿势（基于身体关键点）
+    evaluateDiamondHandsPose(keypoints) {
+        let score = 0;
+        let checks = 0;
+
+        // 获取关键身体部位
+        const leftShoulder = this.getKeypoint(keypoints, 'leftShoulder');
+        const rightShoulder = this.getKeypoint(keypoints, 'rightShoulder');
+        const leftElbow = this.getKeypoint(keypoints, 'leftElbow');
+        const rightElbow = this.getKeypoint(keypoints, 'rightElbow');
+        const leftWrist = this.getKeypoint(keypoints, 'leftWrist');
+        const rightWrist = this.getKeypoint(keypoints, 'rightWrist');
+        const nose = this.getKeypoint(keypoints, 'nose');
+        const leftHip = this.getKeypoint(keypoints, 'leftHip');
+        const rightHip = this.getKeypoint(keypoints, 'rightHip');
+
+        // 1. 检查手腕位置（胸前高度和距离）- 25分
+        if (leftWrist && rightWrist && leftShoulder && rightShoulder) {
+            // 手腕高度应该在肩膀和臀部之间（胸前区域）
+            const shoulderY = (leftShoulder.position.y + rightShoulder.position.y) / 2;
+            const wristY = (leftWrist.position.y + rightWrist.position.y) / 2;
+            const hipY = leftHip && rightHip ? (leftHip.position.y + rightHip.position.y) / 2 : shoulderY + 200;
+
+            // 检查手腕是否在胸前高度（肩膀下方，臀部上方）
+            if (wristY > shoulderY && wristY < hipY) {
+                score += 15;
+
+                // 检查双手腕距离（应该靠近形成钻石形状）
+                const wristDistance = Math.abs(leftWrist.position.x - rightWrist.position.x);
+                if (wristDistance < 100) { // 手腕距离小于100像素
+                    score += 10;
+                }
+            }
+            checks++;
+        }
+
+        // 2. 检查肘部角度和位置 - 25分
+        if (leftElbow && rightElbow && leftShoulder && rightShoulder && leftWrist && rightWrist) {
+            // 计算左肘角度（肩膀-肘部-手腕）
+            const leftElbowAngle = this.poseDefinitions.calculateAngle(
+                leftShoulder.position, leftElbow.position, leftWrist.position
+            );
+
+            // 计算右肘角度（肩膀-肘部-手腕）
+            const rightElbowAngle = this.poseDefinitions.calculateAngle(
+                rightShoulder.position, rightElbow.position, rightWrist.position
+            );
+
+            // 检查肘部角度是否在80-120度范围内
+            if (leftElbowAngle >= 80 && leftElbowAngle <= 120) {
+                score += 12;
+            }
+            if (rightElbowAngle >= 80 && rightElbowAngle <= 120) {
+                score += 13;
+            }
+            checks++;
+        }
+
+        // 3. 检查肩膀水平度和张开度 - 20分
+        if (leftShoulder && rightShoulder) {
+            // 肩膀应该保持水平
+            const shoulderTilt = Math.abs(leftShoulder.position.y - rightShoulder.position.y);
+            if (shoulderTilt < 30) { // 肩膀倾斜小于30像素
+                score += 10;
+            }
+
+            // 肩膀应该适当张开（不要过于收缩）
+            const shoulderWidth = Math.abs(leftShoulder.position.x - rightShoulder.position.x);
+            if (shoulderWidth > 100) { // 肩膀宽度大于100像素
+                score += 10;
+            }
+            checks++;
+        }
+
+        // 4. 检查身体姿态（直立度）- 20分
+        if (nose && leftShoulder && rightShoulder && leftHip && rightHip) {
+            // 检查身体是否直立（头部、肩膀、臀部对齐）
+            const shoulderCenterX = (leftShoulder.position.x + rightShoulder.position.x) / 2;
+            const hipCenterX = (leftHip.position.x + rightHip.position.x) / 2;
+            const bodyTilt = Math.abs(shoulderCenterX - hipCenterX);
+
+            if (bodyTilt < 50) { // 身体倾斜小于50像素
+                score += 15;
+            }
+
+            // 检查头部位置（应该在肩膀上方中央）
+            const headAlignment = Math.abs(nose.position.x - shoulderCenterX);
+            if (headAlignment < 40) { // 头部对齐误差小于40像素
+                score += 5;
+            }
+            checks++;
+        }
+
+        // 5. 检查手臂对称性 - 10分
+        if (leftElbow && rightElbow && leftWrist && rightWrist && leftShoulder && rightShoulder) {
+            // 检查左右手臂的对称性
+            const leftArmLength = Math.sqrt(
+                Math.pow(leftElbow.position.x - leftShoulder.position.x, 2) +
+                Math.pow(leftElbow.position.y - leftShoulder.position.y, 2)
+            );
+            const rightArmLength = Math.sqrt(
+                Math.pow(rightElbow.position.x - rightShoulder.position.x, 2) +
+                Math.pow(rightElbow.position.y - rightShoulder.position.y, 2)
+            );
+
+            const armLengthDiff = Math.abs(leftArmLength - rightArmLength);
+            if (armLengthDiff < 30) { // 手臂长度差异小于30像素
+                score += 10;
+            }
+            checks++;
+        }
+
+        // 如果检查项目不足，降低分数
+        if (checks < 3) {
+            score = score * 0.5; // 关键点检测不足时减半分数
+        }
+
+        return Math.round(score);
+    }
+
     // 计算稳定性分数（优化版本）
     calculateStability() {
+        // 获取准确度阈值（Diamond Hands使用75，其他使用70）
+        const poseKey = this.getCurrentPoseKey();
+        const accuracyThreshold = (poseKey === 'diamond-hands') ? 75 : 70;
+
+        // 只有当准确度达到阈值时才计算稳定性
+        if (this.accuracyScore < accuracyThreshold) {
+            return 0; // 准确度不够时稳定性为0
+        }
+
         if (this.poseHistory.length < this.thresholds.stabilityWindow) {
             return this.stabilityScore || 0; // 返回上次计算的值
         }
@@ -356,8 +489,12 @@ class ScoringSystem {
     calculateDuration() {
         if (!this.currentPose) return 0;
 
+        // 获取准确度阈值（Diamond Hands使用75，其他使用70）
+        const poseKey = this.getCurrentPoseKey();
+        const accuracyThreshold = (poseKey === 'diamond-hands') ? 75 : 70;
+
         // 如果准确度足够高，开始计时
-        if (this.accuracyScore > 70) {
+        if (this.accuracyScore >= accuracyThreshold) {
             if (!this.isHolding) {
                 this.startTime = Date.now();
                 this.isHolding = true;
@@ -370,7 +507,7 @@ class ScoringSystem {
 
         const targetDuration = this.currentPose.duration || 30;
         const durationScore = Math.min(100, (this.holdTime / targetDuration) * 100);
-        
+
         return Math.round(durationScore);
     }
 
