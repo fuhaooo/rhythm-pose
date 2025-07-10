@@ -22,6 +22,12 @@ class HandDetector {
             dynamicConfidence: true, // 启用动态置信度调整
             qualityBonus: 0.15   // 高质量检测的置信度奖励
         };
+
+        // KNN分类器用于自定义手势识别
+        this.knnClassifier = null;
+        this.useKNN = false; // 是否使用KNN分类器
+        this.gestureHistory = []; // 手势历史记录用于平滑
+        this.historyLength = 5; // 历史记录长度
     }
 
     // 设置视频源
@@ -86,6 +92,12 @@ class HandDetector {
                 this.hands = results;
                 this.processHandResults(results);
             });
+
+            // 初始化KNN分类器
+            if (typeof ml5.KNNClassifier === 'function') {
+                this.knnClassifier = ml5.KNNClassifier();
+                console.log('KNN分类器已初始化');
+            }
 
             return true;
         } catch (error) {
@@ -157,14 +169,26 @@ class HandDetector {
 
     // 处理手部检测结果
     processHandResults(hands) {
-        if (!hands || hands.length === 0) return;
+        if (!hands || hands.length === 0) {
+            console.log('HandDetector: 没有检测到手部');
+            return;
+        }
+
+        console.log('HandDetector: 检测到', hands.length, '只手');
 
         // 识别手势
-        const gestures = hands.map(hand => this.recognizeGesture(hand));
-        
+        const gestures = hands.map(hand => {
+            const gesture = this.recognizeGesture(hand);
+            console.log('HandDetector: 识别手势:', gesture);
+            return gesture;
+        });
+
         // 触发回调
         if (this.onHandDetected) {
+            console.log('HandDetector: 触发回调，手势:', gestures);
             this.onHandDetected(hands, gestures);
+        } else {
+            console.warn('HandDetector: 没有设置回调函数');
         }
     }
 
@@ -189,12 +213,12 @@ class HandDetector {
         const pinky_pip = keypoints[18];
         const wrist = keypoints[0];
 
-        // 计算手指是否伸直
-        const isThumbUp = thumb_tip.y < thumb_ip.y;
-        const isIndexUp = index_tip.y < index_pip.y;
-        const isMiddleUp = middle_tip.y < middle_pip.y;
-        const isRingUp = ring_tip.y < ring_pip.y;
-        const isPinkyUp = pinky_tip.y < pinky_pip.y;
+        // 计算手指是否伸直（简化版本，更容易触发）
+        const isThumbUp = thumb_tip.x > thumb_ip.x + 5; // 拇指向右伸展
+        const isIndexUp = index_tip.y < index_pip.y - 5; // 降低阈值
+        const isMiddleUp = middle_tip.y < middle_pip.y - 5;
+        const isRingUp = ring_tip.y < ring_pip.y - 5;
+        const isPinkyUp = pinky_tip.y < pinky_pip.y - 5;
 
         // 计算手指数量
         const fingersUp = [isThumbUp, isIndexUp, isMiddleUp, isRingUp, isPinkyUp].filter(Boolean).length;
@@ -204,50 +228,29 @@ class HandDetector {
         const qualityBonus = this.gestureConfig.dynamicConfidence ?
             (avgConfidence > 0.8 ? this.gestureConfig.qualityBonus : 0) : 0;
 
-        // 手势识别逻辑（提高基础置信度）
-        if (isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'thumbs-up', confidence: Math.min(0.95 + qualityBonus, 1.0) };
-        } else if (!isThumbUp && isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'peace', confidence: Math.min(0.95 + qualityBonus, 1.0) };
-        } else if (!isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'fist', confidence: Math.min(0.93 + qualityBonus, 1.0) };
-        } else if (fingersUp === 5) {
-            return { name: 'open-palm', confidence: Math.min(0.92 + qualityBonus, 1.0) };
-        } else if (!isThumbUp && isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'pointing', confidence: Math.min(0.90 + qualityBonus, 1.0) };
-        } else if (isThumbUp && isIndexUp && !isMiddleUp && !isRingUp && isPinkyUp) {
-            return { name: 'rock-on', confidence: Math.min(0.88 + qualityBonus, 1.0) };
-        } else if (!isThumbUp && !isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'middle-finger', confidence: Math.min(0.87 + qualityBonus, 1.0) };
-        } else if (isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'thumbs-up', confidence: Math.min(0.95 + qualityBonus, 1.0) };
-        } else if (!isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && isPinkyUp) {
-            return { name: 'pinky-up', confidence: Math.min(0.85 + qualityBonus, 1.0) };
-        } else if (isThumbUp && isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp) {
-            return { name: 'three-fingers', confidence: Math.min(0.88 + qualityBonus, 1.0) };
-        } else if (fingersUp === 4 && !isThumbUp) {
-            return { name: 'four-fingers', confidence: Math.min(0.86 + qualityBonus, 1.0) };
+        // 简化的手势识别逻辑（更容易触发）
+        console.log('手指状态:', { isThumbUp, isIndexUp, isMiddleUp, isRingUp, isPinkyUp, fingersUp });
+
+        if (isThumbUp && fingersUp <= 2) {
+            return { name: 'thumbs-up', confidence: 0.9 + qualityBonus };
+        } else if (isIndexUp && isMiddleUp && fingersUp <= 3) {
+            return { name: 'peace', confidence: 0.9 + qualityBonus };
+        } else if (fingersUp === 0) {
+            return { name: 'fist', confidence: 0.9 + qualityBonus };
+        } else if (fingersUp >= 4) {
+            return { name: 'open-palm', confidence: 0.8 + qualityBonus };
+        } else if (isIndexUp && fingersUp <= 2) {
+            return { name: 'pointing', confidence: 0.8 + qualityBonus };
+        } else if (isThumbUp && isIndexUp && isPinkyUp) {
+            return { name: 'rock-sign', confidence: 0.8 + qualityBonus };
         } else if (this.detectOKSign(keypoints)) {
-            return { name: 'ok-sign', confidence: Math.min(0.90 + qualityBonus, 1.0) };
-        } else if (this.detectCallMeSign(keypoints)) {
-            return { name: 'call-me', confidence: Math.min(0.85 + qualityBonus, 1.0) };
-        } else if (this.detectGunSign(keypoints)) {
-            return { name: 'gun-sign', confidence: Math.min(0.83 + qualityBonus, 1.0) };
+            return { name: 'ok-sign', confidence: 0.8 + qualityBonus };
         } else if (this.detectHeartSign(keypoints)) {
-            return { name: 'heart-sign', confidence: Math.min(0.90 + qualityBonus, 1.0) };
-        } else if (this.detectSpiderSign(keypoints)) {
-            return { name: 'spider-sign', confidence: Math.min(0.85 + qualityBonus, 1.0) };
-        } else if (this.detectRockSign(keypoints)) {
-            return { name: 'rock-sign', confidence: Math.min(0.88 + qualityBonus, 1.0) };
-        } else if (this.detectPraySign(keypoints)) {
-            return { name: 'pray-sign', confidence: Math.min(0.87 + qualityBonus, 1.0) };
-        } else if (this.detectHighFive(keypoints)) {
-            return { name: 'high-five', confidence: Math.min(0.85 + qualityBonus, 1.0) };
+            return { name: 'heart-sign', confidence: 0.8 + qualityBonus };
+        } else if (fingersUp >= 3) {
+            // 可能是挥手或其他手势
+            return { name: 'wave', confidence: 0.6 + qualityBonus };
         } else {
-            // 检测挥手动作（基于手腕位置变化）
-            if (this.detectWaving(hand)) {
-                return { name: 'wave', confidence: Math.min(0.85 + qualityBonus, 1.0) };
-            }
             return { name: 'unknown', confidence: 0.3 };
         }
     }
@@ -453,6 +456,113 @@ class HandDetector {
         const fingerSpread = Math.abs(keypoints[8].x - keypoints[16].x);
 
         return fingersUp.filter(Boolean).length === 5 && fingerSpread > 40;
+    }
+
+    // 改进的拇指检测方法
+    isThumbExtended(thumbTip, thumbIp, keypoints) {
+        const wrist = keypoints[0];
+        const thumbMcp = keypoints[2];
+
+        // 计算拇指的方向向量
+        const thumbDirection = {
+            x: thumbTip.x - thumbMcp.x,
+            y: thumbTip.y - thumbMcp.y
+        };
+
+        // 计算手腕到拇指根部的向量
+        const wristToThumb = {
+            x: thumbMcp.x - wrist.x,
+            y: thumbMcp.y - wrist.y
+        };
+
+        // 拇指伸直的判断：拇指尖应该远离手腕
+        const thumbLength = Math.sqrt(thumbDirection.x ** 2 + thumbDirection.y ** 2);
+        const distanceFromWrist = Math.sqrt((thumbTip.x - wrist.x) ** 2 + (thumbTip.y - wrist.y) ** 2);
+
+        return thumbLength > 20 && distanceFromWrist > 60;
+    }
+
+    // 计算两点间距离
+    calculateDistance(point1, point2) {
+        return Math.sqrt(
+            Math.pow(point1.x - point2.x, 2) +
+            Math.pow(point1.y - point2.y, 2)
+        );
+    }
+
+    // 计算角度
+    calculateAngle(center, point) {
+        return Math.atan2(point.y - center.y, point.x - center.x) * 180 / Math.PI;
+    }
+
+    // 计算手势方向
+    calculateHandOrientation(keypoints) {
+        const wrist = keypoints[0];
+        const middleMcp = keypoints[9];
+
+        const angle = Math.atan2(middleMcp.y - wrist.y, middleMcp.x - wrist.x);
+        return Math.abs(Math.sin(angle)); // 返回垂直程度
+    }
+
+    // 提取手部特征用于KNN分类
+    extractHandFeatures(keypoints) {
+        const features = [];
+
+        // 添加所有关键点的相对位置
+        const wrist = keypoints[0];
+        for (let i = 1; i < keypoints.length; i++) {
+            features.push(keypoints[i].x - wrist.x);
+            features.push(keypoints[i].y - wrist.y);
+        }
+
+        // 添加手指间的距离
+        const fingerTips = [4, 8, 12, 16, 20]; // 手指尖的索引
+        for (let i = 0; i < fingerTips.length; i++) {
+            for (let j = i + 1; j < fingerTips.length; j++) {
+                const dist = this.calculateDistance(keypoints[fingerTips[i]], keypoints[fingerTips[j]]);
+                features.push(dist);
+            }
+        }
+
+        return features;
+    }
+
+    // 训练KNN分类器的方法
+    trainGesture(gestureName, keypoints) {
+        if (!this.knnClassifier) {
+            console.warn('KNN分类器未初始化');
+            return;
+        }
+
+        const features = this.extractHandFeatures(keypoints);
+        this.knnClassifier.addExample(features, gestureName);
+        console.log(`已添加手势训练数据: ${gestureName}`);
+    }
+
+    // 启用KNN分类器
+    enableKNN() {
+        this.useKNN = true;
+        console.log('已启用KNN手势识别');
+    }
+
+    // 禁用KNN分类器
+    disableKNN() {
+        this.useKNN = false;
+        console.log('已禁用KNN手势识别');
+    }
+
+    // 保存KNN模型
+    saveKNNModel() {
+        if (!this.knnClassifier) return null;
+        return this.knnClassifier.save();
+    }
+
+    // 加载KNN模型
+    loadKNNModel(modelData) {
+        if (!this.knnClassifier) return;
+        this.knnClassifier.load(modelData);
+        this.useKNN = true;
+        console.log('KNN模型已加载');
     }
 
     // 开始检测

@@ -575,11 +575,19 @@ class RhythmPoseApp {
         if (mode === 'pose') {
             // 人体姿势动作
             const poseOptions = [
-                { value: 'tree', text: '树式 (瑜伽)' },
-                { value: 'warrior', text: '战士式 (瑜伽)' },
-                { value: 'plank', text: '平板支撑' },
-                { value: 'squat', text: '深蹲' },
-                { value: 'jumping-jacks', text: '开合跳' }
+                { value: 'yoga-auto', text: '🧘‍♀️ 瑜伽动作自动识别' },
+                { value: 'tree', text: '🌳 树式 (瑜伽)' },
+                { value: 'warrior', text: '⚔️ 战士式 (瑜伽)' },
+                { value: 'eagle', text: '🦅 鹰式 (瑜伽)' },
+                { value: 'dancer', text: '💃 舞者式 (瑜伽)' },
+                { value: 'bow', text: '🏹 弓式 (瑜伽)' },
+                { value: 'cat', text: '🐱 猫式伸展 (瑜伽)' },
+                { value: 'cobra', text: '🐍 眼镜蛇式 (瑜伽)' },
+                { value: 'pigeon', text: '🕊️ 鸽子式 (瑜伽)' },
+                { value: 'plank', text: '📏 平板支撑' },
+                { value: 'sidePlank', text: '📐 侧平板支撑' },
+                { value: 'squat', text: '🏋️ 深蹲' },
+                { value: 'jumping-jacks', text: '🤸‍♀️ 开合跳' }
             ];
             poseOptions.forEach(option => {
                 const optionElement = document.createElement('option');
@@ -592,11 +600,19 @@ class RhythmPoseApp {
         if (mode === 'hands') {
             // 手部动作
             const handOptions = [
-                { value: 'wave', text: '挥手' },
-                { value: 'thumbs-up', text: '点赞' },
-                { value: 'peace', text: '比心/胜利手势' },
-                { value: 'fist', text: '握拳' },
-                { value: 'open-palm', text: '张开手掌' }
+                { value: 'wave', text: '👋 挥手' },
+                { value: 'thumbs-up', text: '👍 点赞' },
+                { value: 'peace', text: '✌️ 比心/胜利手势' },
+                { value: 'heart-sign', text: '💖 比心手势' },
+                { value: 'fist', text: '✊ 握拳' },
+                { value: 'open-palm', text: '🖐️ 张开手掌' },
+                { value: 'ok-sign', text: '👌 OK手势' },
+                { value: 'pointing', text: '👉 指向' },
+                { value: 'rock-sign', text: '🤘 摇滚手势' },
+                { value: 'pray-sign', text: '🙏 祈祷手势' },
+                { value: 'high-five', text: '🙌 击掌' },
+                { value: 'spider-sign', text: '🕷️ 蜘蛛手势' },
+                { value: 'call-me', text: '🤙 打电话手势' }
             ];
             handOptions.forEach(option => {
                 const optionElement = document.createElement('option');

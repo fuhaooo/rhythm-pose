@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 ml5.js 手势训练器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .video-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        #video {
+            width: 640px;
+            height: 480px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 15px;
+            background: #000;
+        }
+        .controls {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .control-group {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .control-group h3 {
+            margin: 0 0 15px 0;
+            color: #fff;
+            font-size: 1.2em;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .gesture-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .gesture-btn {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            font-size: 14px;
+            padding: 10px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            border-left: 4px solid #4ecdc4;
+        }
+        .prediction {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4ecdc4;
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+        }
+        .debug {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .training-count {
+            display: inline-block;
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 ml5.js 手势训练器</h1>
+        
+        <div class="video-section">
+            <video id="video" autoplay muted></video>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <h3>🎥 摄像头控制</h3>
+                    <button id="startBtn">启动摄像头</button>
+                    <button id="stopBtn" disabled>停止摄像头</button>
+                </div>
+                
+                <div class="control-group">
+                    <h3>🧠 模型控制</h3>
+                    <button id="clearBtn" disabled>清空训练数据</button>
+                    <button id="saveBtn" disabled>保存模型</button>
+                    <button id="loadBtn" disabled>加载模型</button>
+                </div>
+                
+                <div class="control-group">
+                    <h3>🎯 预测模式</h3>
+                    <button id="predictBtn" disabled>开始预测</button>
+                    <button id="stopPredictBtn" disabled>停止预测</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3>✋ 手势训练 (每个手势至少训练10次)</h3>
+            <div class="gesture-buttons">
+                <button class="gesture-btn" data-gesture="thumbs-up">👍 点赞 <span class="training-count" id="count-thumbs-up">0</span></button>
+                <button class="gesture-btn" data-gesture="peace">✌️ 比心 <span class="training-count" id="count-peace">0</span></button>
+                <button class="gesture-btn" data-gesture="fist">✊ 握拳 <span class="training-count" id="count-fist">0</span></button>
+                <button class="gesture-btn" data-gesture="open-palm">🖐️ 张开 <span class="training-count" id="count-open-palm">0</span></button>
+                <button class="gesture-btn" data-gesture="pointing">👉 指向 <span class="training-count" id="count-pointing">0</span></button>
+                <button class="gesture-btn" data-gesture="rock-sign">🤘 摇滚 <span class="training-count" id="count-rock-sign">0</span></button>
+                <button class="gesture-btn" data-gesture="ok-sign">👌 OK <span class="training-count" id="count-ok-sign">0</span></button>
+                <button class="gesture-btn" data-gesture="heart-sign">💖 比心 <span class="training-count" id="count-heart-sign">0</span></button>
+            </div>
+        </div>
+        
+        <div class="status" id="status">
+            等待启动摄像头...
+        </div>
+        
+        <div class="prediction" id="prediction">
+            预测结果将显示在这里
+        </div>
+        
+        <div class="debug" id="debug">
+            调试信息...
+        </div>
+    </div>
+
+    <!-- 引入ml5.js -->
+    <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+    
+    <script>
+        class GestureTrainer {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.handPose = null;
+                this.knnClassifier = null;
+                this.isPredicting = false;
+                this.trainingCounts = {};
+                
+                this.initializeElements();
+                this.initializeEvents();
+            }
+            
+            initializeElements() {
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.saveBtn = document.getElementById('saveBtn');
+                this.loadBtn = document.getElementById('loadBtn');
+                this.predictBtn = document.getElementById('predictBtn');
+                this.stopPredictBtn = document.getElementById('stopPredictBtn');
+                this.status = document.getElementById('status');
+                this.prediction = document.getElementById('prediction');
+                this.debug = document.getElementById('debug');
+                this.gestureButtons = document.querySelectorAll('.gesture-btn');
+            }
+            
+            initializeEvents() {
+                this.startBtn.addEventListener('click', () => this.startCamera());
+                this.stopBtn.addEventListener('click', () => this.stopCamera());
+                this.clearBtn.addEventListener('click', () => this.clearTraining());
+                this.saveBtn.addEventListener('click', () => this.saveModel());
+                this.loadBtn.addEventListener('click', () => this.loadModel());
+                this.predictBtn.addEventListener('click', () => this.startPrediction());
+                this.stopPredictBtn.addEventListener('click', () => this.stopPrediction());
+                
+                this.gestureButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const gesture = btn.dataset.gesture;
+                        this.trainGesture(gesture);
+                    });
+                });
+            }
+            
+            async startCamera() {
+                try {
+                    this.log('启动摄像头...');
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { width: 640, height: 480 } 
+                    });
+                    this.video.srcObject = stream;
+                    
+                    await new Promise(resolve => {
+                        this.video.onloadedmetadata = resolve;
+                    });
+                    
+                    this.log('初始化ml5.js HandPose...');
+                    this.handPose = await ml5.handPose(this.video, {
+                        flipHorizontal: false,
+                        maxContinuousChecks: 10,
+                        detectionConfidence: 0.5,
+                        scoreThreshold: 0.5
+                    });
+                    
+                    this.log('初始化KNN分类器...');
+                    this.knnClassifier = ml5.KNNClassifier();
+                    
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    this.clearBtn.disabled = false;
+                    this.saveBtn.disabled = false;
+                    this.loadBtn.disabled = false;
+                    this.predictBtn.disabled = false;
+                    
+                    this.gestureButtons.forEach(btn => btn.disabled = false);
+                    
+                    this.status.textContent = '✅ 系统就绪！可以开始训练手势';
+                    this.log('系统初始化完成');
+                    
+                } catch (error) {
+                    this.log('错误: ' + error.message);
+                    this.status.textContent = '❌ 启动失败: ' + error.message;
+                }
+            }
+            
+            stopCamera() {
+                if (this.video.srcObject) {
+                    const tracks = this.video.srcObject.getTracks();
+                    tracks.forEach(track => track.stop());
+                    this.video.srcObject = null;
+                }
+                
+                this.isPredicting = false;
+                
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                this.clearBtn.disabled = true;
+                this.saveBtn.disabled = true;
+                this.loadBtn.disabled = true;
+                this.predictBtn.disabled = true;
+                this.stopPredictBtn.disabled = true;
+                
+                this.gestureButtons.forEach(btn => btn.disabled = true);
+                
+                this.status.textContent = '摄像头已停止';
+                this.prediction.textContent = '预测结果将显示在这里';
+            }
+            
+            async trainGesture(gestureName) {
+                if (!this.handPose || !this.knnClassifier) {
+                    this.log('系统未就绪');
+                    return;
+                }
+                
+                try {
+                    const predictions = await this.handPose.detect(this.video);
+                    
+                    if (predictions && predictions.length > 0) {
+                        const hand = predictions[0];
+                        const features = this.extractFeatures(hand.keypoints);
+                        
+                        this.knnClassifier.addExample(features, gestureName);
+                        
+                        this.trainingCounts[gestureName] = (this.trainingCounts[gestureName] || 0) + 1;
+                        document.getElementById(`count-${gestureName}`).textContent = this.trainingCounts[gestureName];
+                        
+                        this.log(`训练 ${gestureName}: ${this.trainingCounts[gestureName]} 次`);
+                        this.status.textContent = `✅ 已训练 ${gestureName} ${this.trainingCounts[gestureName]} 次`;
+                        
+                    } else {
+                        this.status.textContent = '❌ 未检测到手部，请将手放在摄像头前';
+                    }
+                } catch (error) {
+                    this.log('训练错误: ' + error.message);
+                }
+            }
+            
+            extractFeatures(keypoints) {
+                const features = [];
+                const wrist = keypoints[0];
+                
+                // 添加所有关键点相对于手腕的位置
+                for (let i = 1; i < keypoints.length; i++) {
+                    features.push(keypoints[i].x - wrist.x);
+                    features.push(keypoints[i].y - wrist.y);
+                }
+                
+                // 添加手指间的距离特征
+                const fingerTips = [4, 8, 12, 16, 20];
+                for (let i = 0; i < fingerTips.length; i++) {
+                    for (let j = i + 1; j < fingerTips.length; j++) {
+                        const dist = Math.sqrt(
+                            Math.pow(keypoints[fingerTips[i]].x - keypoints[fingerTips[j]].x, 2) +
+                            Math.pow(keypoints[fingerTips[i]].y - keypoints[fingerTips[j]].y, 2)
+                        );
+                        features.push(dist);
+                    }
+                }
+                
+                return features;
+            }
+            
+            async startPrediction() {
+                if (!this.handPose || !this.knnClassifier) {
+                    this.log('系统未就绪');
+                    return;
+                }
+                
+                this.isPredicting = true;
+                this.predictBtn.disabled = true;
+                this.stopPredictBtn.disabled = false;
+                
+                this.log('开始预测...');
+                this.predict();
+            }
+            
+            async predict() {
+                if (!this.isPredicting) return;
+                
+                try {
+                    const predictions = await this.handPose.detect(this.video);
+                    
+                    if (predictions && predictions.length > 0) {
+                        const hand = predictions[0];
+                        const features = this.extractFeatures(hand.keypoints);
+                        
+                        const result = await this.knnClassifier.classify(features);
+                        
+                        this.prediction.innerHTML = `
+                            <div style="font-size: 2em;">${this.getGestureEmoji(result.label)}</div>
+                            <div>${result.label}</div>
+                            <div style="font-size: 0.8em;">置信度: ${(result.confidence * 100).toFixed(1)}%</div>
+                        `;
+                        
+                    } else {
+                        this.prediction.textContent = '未检测到手部';
+                    }
+                } catch (error) {
+                    this.log('预测错误: ' + error.message);
+                }
+                
+                setTimeout(() => this.predict(), 100);
+            }
+            
+            stopPrediction() {
+                this.isPredicting = false;
+                this.predictBtn.disabled = false;
+                this.stopPredictBtn.disabled = true;
+                this.prediction.textContent = '预测已停止';
+            }
+            
+            clearTraining() {
+                if (this.knnClassifier) {
+                    this.knnClassifier.clearAllData();
+                    this.trainingCounts = {};
+                    
+                    document.querySelectorAll('.training-count').forEach(el => {
+                        el.textContent = '0';
+                    });
+                    
+                    this.status.textContent = '✅ 训练数据已清空';
+                    this.log('训练数据已清空');
+                }
+            }
+            
+            saveModel() {
+                if (this.knnClassifier) {
+                    this.knnClassifier.save('gesture-model');
+                    this.status.textContent = '✅ 模型已保存';
+                    this.log('模型已保存');
+                }
+            }
+            
+            loadModel() {
+                if (this.knnClassifier) {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            this.knnClassifier.load(file, () => {
+                                this.status.textContent = '✅ 模型已加载';
+                                this.log('模型已加载');
+                            });
+                        }
+                    };
+                    input.click();
+                }
+            }
+            
+            getGestureEmoji(gesture) {
+                const emojis = {
+                    'thumbs-up': '👍',
+                    'peace': '✌️',
+                    'fist': '✊',
+                    'open-palm': '🖐️',
+                    'pointing': '👉',
+                    'rock-sign': '🤘',
+                    'ok-sign': '👌',
+                    'heart-sign': '💖'
+                };
+                return emojis[gesture] || '❓';
+            }
+            
+            log(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                this.debug.innerHTML += `[${timestamp}] ${message}<br>`;
+                this.debug.scrollTop = this.debug.scrollHeight;
+                console.log(message);
+            }
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            new GestureTrainer();
+        });
+    </script>
+</body>
+</html>
