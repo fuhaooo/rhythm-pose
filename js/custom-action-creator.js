@@ -91,29 +91,53 @@ class CustomActionCreator {
                         <!-- 编辑模式 -->
                         <div class="edit-mode" style="display: none;">
                             <h3>编辑关键点</h3>
-                            <div class="edit-controls">
-                                <button class="detect-pose-btn">🔍 尝试自动检测</button>
-                                <div class="tool-group">
-                                    <button class="tool-btn move-tool-btn active" data-tool="move">🔄 移动</button>
-                                    <button class="tool-btn add-tool-btn" data-tool="add">➕ 添加</button>
-                                    <button class="tool-btn delete-tool-btn" data-tool="delete">➖ 删除</button>
+
+                            <!-- 顶部工具栏 -->
+                            <div class="edit-toolbar">
+                                <div class="toolbar-left">
+                                    <button class="detect-pose-btn">🔍 自动检测</button>
+                                    <div class="tool-group">
+                                        <button class="tool-btn move-tool-btn active" data-tool="move">🔄 移动</button>
+                                        <button class="tool-btn add-tool-btn" data-tool="add">➕ 添加</button>
+                                        <button class="tool-btn delete-tool-btn" data-tool="delete">➖ 删除</button>
+                                    </div>
+                                    <button class="clear-points-btn">🗑️ 清空</button>
                                 </div>
-                                <button class="clear-points-btn">🗑️ 清空关键点</button>
-                                <button class="next-step-btn">➡️ 下一步</button>
-                                <button class="back-btn">← 返回</button>
+                                <div class="toolbar-right">
+                                    <button class="next-step-btn">➡️ 下一步</button>
+                                    <button class="back-btn">← 返回</button>
+                                </div>
                             </div>
+
+                            <!-- 编辑器容器 -->
                             <div class="editor-container"></div>
-                            <div class="edit-info">
-                                <p>💡 操作提示：</p>
-                                <ul>
-                                    <li>拖拽关键点调整位置</li>
-                                    <li>右键点击关键点删除</li>
-                                    <li>点击"自动检测姿态"识别关键点</li>
-                                    <li>如果自动检测失败，建议使用摄像头截图功能</li>
-                                </ul>
-                                <div class="edit-tips">
-                                    <strong>📝 关键点建议：</strong>
-                                    <p>至少标注头部、肩膀、手肘、手腕、臀部、膝盖、脚踝等主要关节点，这样可以获得更好的动作识别效果。</p>
+
+                            <!-- 底部控制面板 -->
+                            <div class="edit-controls-panel">
+                                <div class="control-section">
+                                    <h4>💡 操作提示</h4>
+                                    <div class="tips-grid">
+                                        <div class="tip-item">
+                                            <span class="tip-icon">🎯</span>
+                                            <span>拖拽关键点调整位置</span>
+                                        </div>
+                                        <div class="tip-item">
+                                            <span class="tip-icon">➕</span>
+                                            <span>选择添加工具后点击图片</span>
+                                        </div>
+                                        <div class="tip-item">
+                                            <span class="tip-icon">🗑️</span>
+                                            <span>右键点击关键点删除</span>
+                                        </div>
+                                        <div class="tip-item">
+                                            <span class="tip-icon">🔍</span>
+                                            <span>自动检测识别关键点</span>
+                                        </div>
+                                    </div>
+                                    <div class="keypoint-tips">
+                                        <strong>📝 关键点建议：</strong>
+                                        <p>至少标注头部、肩膀、手肘、手腕、臀部、膝盖、脚踝等主要关节点，这样可以获得更好的动作识别效果。</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -124,17 +148,17 @@ class CustomActionCreator {
                             <form class="action-form">
                                 <div class="form-group">
                                     <label for="action-name">动作名称 *</label>
-                                    <input type="text" id="action-name" class="form-input" placeholder="输入动作名称" required>
+                                    <input type="text" id="action-name" name="action-name" class="form-input" placeholder="输入动作名称" required>
                                 </div>
-                                
+
                                 <div class="form-group">
                                     <label for="action-description">动作描述</label>
-                                    <textarea id="action-description" class="form-textarea" placeholder="描述这个动作的要点和注意事项" rows="3"></textarea>
+                                    <textarea id="action-description" name="action-description" class="form-textarea" placeholder="描述这个动作的要点和注意事项" rows="3"></textarea>
                                 </div>
-                                
+
                                 <div class="form-group">
                                     <label for="action-difficulty">难度等级</label>
-                                    <select id="action-difficulty" class="form-select">
+                                    <select id="action-difficulty" name="action-difficulty" class="form-select">
                                         <option value="1">1 - 简单</option>
                                         <option value="2">2 - 容易</option>
                                         <option value="3" selected>3 - 中等</option>
@@ -178,7 +202,8 @@ class CustomActionCreator {
 
             .camera-preview {
                 width: 100%;
-                height: 300px;
+                height: 0;
+                padding-bottom: 56.25%; /* 16:9 宽高比 */
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -188,6 +213,9 @@ class CustomActionCreator {
             }
 
             .camera-preview video {
+                position: absolute;
+                top: 0;
+                left: 0;
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
@@ -200,39 +228,253 @@ class CustomActionCreator {
                 left: 0;
                 width: 100%;
                 height: 100%;
+                transform: scaleX(-1); /* 镜像显示 */
                 pointer-events: none;
+                transform: scaleX(-1); /* 镜像显示画布 */
+            }
+
+            .edit-toolbar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 15px;
+                background: #f8f9fa;
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .toolbar-left {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .toolbar-right {
+                display: flex;
+                align-items: center;
+                gap: 10px;
             }
 
             .tool-group {
                 display: inline-flex;
-                gap: 5px;
-                margin: 0 10px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
+                gap: 0;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
                 overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
 
             .tool-btn {
-                padding: 8px 12px;
+                padding: 10px 16px;
                 border: none;
-                background: #f8f9fa;
+                background: #ffffff;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.2s ease;
                 font-size: 14px;
+                font-weight: 500;
+                color: #495057;
+                border-right: 1px solid #dee2e6;
+                min-height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .tool-btn:last-child {
+                border-right: none;
             }
 
             .tool-btn:hover {
-                background: #e9ecef;
+                background: #f8f9fa;
+                transform: translateY(-1px);
             }
 
             .tool-btn.active {
                 background: #007bff;
                 color: white;
+                box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            }
+
+            .edit-controls-panel {
+                margin-top: 20px;
+                padding: 15px;
+                background: #f8f9fa;
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
+            }
+
+            .control-section h4 {
+                margin: 0 0 15px 0;
+                color: #495057;
+                font-size: 16px;
+            }
+
+            .tips-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .tip-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                font-size: 14px;
+            }
+
+            .tip-icon {
+                font-size: 16px;
+                flex-shrink: 0;
+            }
+
+            .keypoint-tips {
+                padding: 12px;
+                background: #e3f2fd;
+                border: 1px solid #bbdefb;
+                border-radius: 6px;
+                margin-top: 10px;
+            }
+
+            .keypoint-tips strong {
+                color: #1976d2;
+                display: block;
+                margin-bottom: 5px;
+            }
+
+            .keypoint-tips p {
+                margin: 0;
+                color: #424242;
+                font-size: 14px;
+                line-height: 1.4;
             }
 
             .tool-btn.delete-tool-btn.active {
                 background: #dc3545;
                 color: white;
+            }
+
+            /* 统一按钮样式 */
+            .detect-pose-btn, .clear-points-btn, .next-step-btn, .back-btn,
+            .capture-btn, .save-btn, .mode-btn {
+                padding: 10px 20px;
+                border: 1px solid #dee2e6;
+                background: #ffffff;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                color: #495057;
+                transition: all 0.2s ease;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                min-height: 40px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+            }
+
+            .detect-pose-btn:hover, .clear-points-btn:hover, .next-step-btn:hover,
+            .back-btn:hover, .capture-btn:hover, .save-btn:hover, .mode-btn:hover {
+                background: #f8f9fa;
+                border-color: #adb5bd;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            }
+
+            .detect-pose-btn:active, .clear-points-btn:active, .next-step-btn:active,
+            .back-btn:active, .capture-btn:active, .save-btn:active, .mode-btn:active {
+                background: #e9ecef;
+                transform: translateY(0);
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            .detect-pose-btn:disabled, .clear-points-btn:disabled, .next-step-btn:disabled,
+            .back-btn:disabled, .capture-btn:disabled, .save-btn:disabled, .mode-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            /* 特殊按钮颜色 */
+            .detect-pose-btn {
+                background: #e3f2fd;
+                border-color: #bbdefb;
+                color: #1976d2;
+            }
+
+            .detect-pose-btn:hover {
+                background: #bbdefb;
+                border-color: #90caf9;
+            }
+
+            .next-step-btn, .save-btn {
+                background: #007bff;
+                border-color: #007bff;
+                color: white;
+            }
+
+            .next-step-btn:hover, .save-btn:hover {
+                background: #0056b3;
+                border-color: #0056b3;
+            }
+
+            .clear-points-btn {
+                background: #fff3cd;
+                border-color: #ffeaa7;
+                color: #856404;
+            }
+
+            .clear-points-btn:hover {
+                background: #ffeaa7;
+                border-color: #fdcb6e;
+            }
+
+            .capture-btn {
+                background: #d4edda;
+                border-color: #c3e6cb;
+                color: #155724;
+            }
+
+            .capture-btn:hover {
+                background: #c3e6cb;
+                border-color: #b8daff;
+            }
+
+            /* 模式选择按钮特殊样式 */
+            .mode-selection .mode-btn {
+                width: 100%;
+                padding: 15px 20px;
+                margin: 8px 0;
+                font-size: 16px;
+                min-height: 50px;
+            }
+
+            /* 摄像头控制按钮容器 */
+            .camera-controls {
+                display: flex;
+                gap: 10px;
+                justify-content: center;
+                margin: 15px 0;
+                flex-wrap: wrap;
+            }
+
+            /* 表单操作按钮容器 */
+            .form-actions {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+                margin-top: 20px;
+                flex-wrap: wrap;
             }
         `;
         document.head.appendChild(style);
@@ -486,9 +728,12 @@ class CustomActionCreator {
 
         const updateFrame = () => {
             if (this.modal.querySelector('.camera-mode').style.display === 'block') {
-                // 复制主画布内容到预览画布
+                // 复制主画布内容到预览画布，并应用镜像变换
                 ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-                ctx.drawImage(this.poseDetector.canvas, 0, 0);
+                ctx.save();
+                ctx.scale(-1, 1); // 水平镜像
+                ctx.drawImage(this.poseDetector.canvas, -previewCanvas.width, 0);
+                ctx.restore();
                 requestAnimationFrame(updateFrame);
             }
         };
@@ -876,6 +1121,11 @@ class CustomActionCreator {
     // 保存动作
     async saveAction() {
         try {
+            // 显示保存状态
+            const saveBtn = this.modal.querySelector('.save-btn');
+            saveBtn.textContent = '💾 保存中...';
+            saveBtn.disabled = true;
+
             if (!this.keypointEditor) {
                 throw new Error('编辑器未初始化');
             }
@@ -885,32 +1135,58 @@ class CustomActionCreator {
                 throw new Error('请至少添加一个关键点');
             }
 
-            const formData = new FormData(this.modal.querySelector('.action-form'));
+            // 获取表单数据
+            const form = this.modal.querySelector('.action-form');
+            const formData = new FormData(form);
+
+            const actionName = formData.get('action-name')?.trim();
+            if (!actionName) {
+                throw new Error('请输入动作名称');
+            }
+
             const actionData = {
-                name: formData.get('action-name') || '未命名动作',
-                description: formData.get('action-description') || '',
+                name: actionName,
+                description: formData.get('action-description')?.trim() || '',
                 difficulty: parseInt(formData.get('action-difficulty')) || 3,
                 keypoints: keypoints,
                 referenceImage: this.currentImageData
             };
 
+            console.log('准备保存动作数据:', {
+                name: actionData.name,
+                description: actionData.description,
+                difficulty: actionData.difficulty,
+                keypointCount: actionData.keypoints.length,
+                hasImage: !!actionData.referenceImage
+            });
+
             const result = this.customActionManager.createAction(actionData);
-            
+
             if (result.success) {
                 console.log('自定义动作保存成功:', result.action.name);
-                this.closeModal();
-                
-                // 通知主应用更新动作列表
-                if (this.onActionCreated) {
-                    this.onActionCreated(result.action);
-                }
+                this.showTemporaryMessage('✅ 动作保存成功！', 2000);
+
+                // 延迟关闭模态框
+                setTimeout(() => {
+                    this.closeModal();
+
+                    // 通知主应用更新动作列表
+                    if (this.onActionCreated) {
+                        this.onActionCreated(result.action);
+                    }
+                }, 1000);
             } else {
                 throw new Error(result.error);
             }
-            
+
         } catch (error) {
             console.error('保存动作失败:', error);
-            alert('保存失败: ' + error.message);
+            this.showTemporaryMessage('❌ 保存失败: ' + error.message, 3000);
+
+            // 恢复按钮状态
+            const saveBtn = this.modal.querySelector('.save-btn');
+            saveBtn.textContent = '💾 保存动作';
+            saveBtn.disabled = false;
         }
     }
 

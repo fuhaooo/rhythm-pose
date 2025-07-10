@@ -975,6 +975,12 @@ class PoseDetector {
             y = typeof y === 'number' ? y : 0;
             confidence = typeof confidence === 'number' ? confidence : 0;
 
+            // 镜像翻转X坐标以匹配镜像显示的摄像头画面
+            // 因为截图时画布已经翻转，关键点坐标需要相应调整
+            if (this.detectionMethod === 'ml5') {
+                x = this.canvas.width - x; // ml5.js需要镜像翻转
+            }
+
             return {
                 name: name,
                 x: x,
