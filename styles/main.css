@@ -567,12 +567,948 @@ body {
     .container {
         padding: 10px;
     }
-    
+
     .header h1 {
         font-size: 2rem;
     }
-    
+
     .pose-info {
         grid-template-columns: 1fr;
+    }
+}
+
+/* 自定义动作模态对话框样式 */
+.custom-action-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 15px;
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: #666;
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+/* 模式选择样式 */
+.mode-selection h3 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.mode-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.mode-btn {
+    padding: 30px 20px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.mode-btn:hover {
+    border-color: #667eea;
+    background: #f8f9ff;
+    transform: translateY(-2px);
+}
+
+/* 摄像头模式样式 */
+.camera-mode h3,
+.upload-mode h3,
+.edit-mode h3,
+.save-mode h3 {
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.camera-controls,
+.edit-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.capture-btn,
+.detect-pose-btn,
+.clear-points-btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.capture-btn:hover,
+.detect-pose-btn:hover,
+.clear-points-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.capture-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.back-btn {
+    padding: 10px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    color: #666;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+    border-color: #999;
+    color: #333;
+}
+
+/* 上传区域样式 */
+.upload-notice {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-left: 4px solid #f39c12;
+}
+
+.upload-notice p {
+    margin: 5px 0;
+    color: #856404;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.upload-notice strong {
+    font-weight: 600;
+}
+
+.upload-area {
+    margin-bottom: 20px;
+}
+
+.upload-zone {
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #fafafa;
+}
+
+.upload-zone:hover,
+.upload-zone.drag-over {
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.upload-zone p {
+    margin: 10px 0;
+    color: #333;
+}
+
+.upload-hint {
+    font-size: 0.9rem;
+    color: #666 !important;
+}
+
+/* 编辑器容器样式 */
+.editor-container {
+    margin: 20px 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    min-height: 400px;
+    background: #f9f9f9;
+}
+
+.edit-info {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f0f8ff;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.edit-info p {
+    margin: 0 0 10px 0;
+    font-weight: 600;
+    color: #333;
+}
+
+.edit-info ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.edit-info li {
+    margin-bottom: 5px;
+    color: #666;
+}
+
+.edit-tips {
+    margin-top: 15px;
+    padding: 12px;
+    background: #fff9e6;
+    border-radius: 6px;
+    border-left: 3px solid #ffc107;
+}
+
+.edit-tips strong {
+    color: #856404;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.edit-tips p {
+    margin: 0;
+    color: #856404;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* 表单样式 */
+.action-form {
+    max-width: 500px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.keypoints-summary {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.keypoints-summary h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.keypoint-count {
+    font-weight: bold;
+    color: #667eea;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    margin-top: 30px;
+}
+
+.save-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+/* 状态信息样式 */
+.status {
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-top: 15px;
+    font-weight: 500;
+}
+
+.status.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.status.loading {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status.info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* 自定义动作响应式设计 */
+@media (max-width: 768px) {
+    .modal-overlay {
+        padding: 10px;
+    }
+
+    .modal-content {
+        max-height: 95vh;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .mode-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .camera-controls,
+    .edit-controls {
+        flex-direction: column;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .mode-btn {
+        padding: 20px 15px;
+        font-size: 1rem;
+    }
+}
+
+/* 自定义动作列表样式 */
+.custom-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.custom-actions h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 1rem;
+}
+
+.custom-action-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.custom-action-controls .btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+.custom-actions-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.no-custom-actions {
+    color: #6c757d;
+    font-style: italic;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 20px;
+    margin: 0;
+}
+
+.custom-action-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.custom-action-item:hover {
+    background: #e9ecef;
+    border-color: #667eea;
+}
+
+.action-info {
+    flex: 1;
+}
+
+.action-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.action-description {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.action-meta {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.action-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.use-action-btn,
+.delete-action-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.use-action-btn {
+    background: #667eea;
+    color: white;
+}
+
+.use-action-btn:hover {
+    background: #5a6fd8;
+    transform: translateY(-1px);
+}
+
+.delete-action-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.delete-action-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+/* 自定义动作管理界面样式 */
+.custom-action-manager-modal .modal-content.manager-modal {
+    max-width: 1000px;
+    max-height: 90vh;
+}
+
+.manager-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 20px;
+}
+
+.toolbar-left {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.actions-count,
+.storage-info {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.toolbar-right {
+    display: flex;
+    gap: 10px;
+}
+
+.import-btn,
+.export-btn,
+.clear-all-btn {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    color: #333;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.import-btn:hover,
+.export-btn:hover {
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+.clear-all-btn:hover {
+    border-color: #dc3545;
+    background: #fff5f5;
+    color: #dc3545;
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 10px 0;
+}
+
+.no-actions-message {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.no-actions-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+}
+
+.no-actions-message h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.no-actions-message p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.action-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.action-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    transform: translateY(-2px);
+}
+
+.action-preview {
+    height: 150px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.action-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.no-image {
+    font-size: 3rem;
+    color: #ccc;
+}
+
+.action-details {
+    padding: 15px;
+}
+
+.action-title {
+    margin: 0 0 8px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.action-desc {
+    margin: 0 0 10px 0;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.action-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.action-card-controls {
+    display: flex;
+    padding: 10px 15px;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    gap: 10px;
+}
+
+.preview-btn,
+.quick-delete-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.preview-btn {
+    flex: 1;
+    background: #667eea;
+    color: white;
+}
+
+.preview-btn:hover {
+    background: #5a6fd8;
+}
+
+.quick-delete-btn {
+    background: #dc3545;
+    color: white;
+    width: 32px;
+    padding: 6px;
+}
+
+.quick-delete-btn:hover {
+    background: #c82333;
+}
+
+.modal-footer {
+    padding: 20px 30px;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+
+.close-manager-btn {
+    padding: 10px 20px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.close-manager-btn:hover {
+    border-color: #999;
+    color: #333;
+}
+
+/* 预览模态框样式 */
+.preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1001;
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.preview-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.preview-content {
+    background: white;
+    border-radius: 15px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.preview-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.3rem;
+}
+
+.preview-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-close:hover {
+    color: #666;
+}
+
+.preview-body {
+    padding: 30px;
+}
+
+.preview-image-container {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.preview-image-container img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.preview-info {
+    display: grid;
+    gap: 15px;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-item label {
+    font-weight: 600;
+    color: #333;
+    min-width: 120px;
+    margin-right: 15px;
+}
+
+.info-item span {
+    color: #666;
+    flex: 1;
+}
+
+.preview-actions {
+    display: flex;
+    gap: 15px;
+    padding: 20px 30px;
+    border-top: 1px solid #eee;
+    justify-content: center;
+}
+
+.edit-action-btn,
+.duplicate-action-btn,
+.delete-preview-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.edit-action-btn {
+    background: #667eea;
+    color: white;
+}
+
+.edit-action-btn:hover {
+    background: #5a6fd8;
+    transform: translateY(-1px);
+}
+
+.duplicate-action-btn {
+    background: #28a745;
+    color: white;
+}
+
+.duplicate-action-btn:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+.delete-preview-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.delete-preview-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+/* 管理界面响应式设计 */
+@media (max-width: 768px) {
+    .custom-action-manager-modal .modal-content.manager-modal {
+        max-width: 95vw;
+        margin: 10px;
+    }
+
+    .manager-toolbar {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+
+    .toolbar-left {
+        justify-content: center;
+    }
+
+    .toolbar-right {
+        justify-content: center;
+    }
+
+    .actions-grid {
+        grid-template-columns: 1fr;
+        max-height: 400px;
+    }
+
+    .preview-content {
+        max-width: 95vw;
+        margin: 10px;
+    }
+
+    .preview-actions {
+        flex-direction: column;
     }
 }

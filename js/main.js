@@ -7,6 +7,11 @@ class RhythmPoseApp {
         this.mediaPipeHandDetector = new MediaPipeHandDetector();
         this.scoringSystem = new ScoringSystem(this.poseDefinitions);
 
+        // 自定义动作相关
+        this.customActionManager = new CustomActionManager();
+        this.customActionCreator = new CustomActionCreator(this.customActionManager, this.poseDetector);
+        this.customActionManagerUI = new CustomActionManagerUI(this.customActionManager);
+
         this.isInitialized = false;
         this.isDetecting = false;
         this.currentPoseKey = 'yoga-auto'; // 默认使用瑜伽自动识别
@@ -23,6 +28,7 @@ class RhythmPoseApp {
         this.initializeElements();
         this.setupEventListeners();
         this.setupCallbacks();
+        this.initializeCustomActions();
         this.updateUI();
         await this.checkCameraSupport();
 
@@ -142,7 +148,11 @@ class RhythmPoseApp {
             bestScore: document.getElementById('best-score'),
             accuracyScore: document.getElementById('accuracy-score'),
             stabilityScore: document.getElementById('stability-score'),
-            durationScore: document.getElementById('duration-score')
+            durationScore: document.getElementById('duration-score'),
+            // 自定义动作相关
+            createActionBtn: document.getElementById('create-action-btn'),
+            manageActionsBtn: document.getElementById('manage-actions-btn'),
+            customActionsList: document.getElementById('custom-actions-list')
         };
     }
 
@@ -181,6 +191,15 @@ class RhythmPoseApp {
         // 显示控制开关
         this.elements.showSkeleton.addEventListener('change', (e) => {
             this.toggleSkeletonDisplay(e.target.checked);
+        });
+
+        // 自定义动作按钮
+        this.elements.createActionBtn.addEventListener('click', () => {
+            this.openCustomActionCreator();
+        });
+
+        this.elements.manageActionsBtn.addEventListener('click', () => {
+            this.openCustomActionManager();
         });
 
 
@@ -619,6 +638,15 @@ class RhythmPoseApp {
             return;
         }
 
+        // 检查是否为自定义动作
+        if (poseKey.startsWith('custom_')) {
+            const customAction = this.customActionManager.getAction(poseKey);
+            if (customAction) {
+                this.handleCustomAction(customAction);
+                return;
+            }
+        }
+
         const pose = this.poseDefinitions.getPose(poseKey);
 
         if (pose) {
@@ -633,6 +661,31 @@ class RhythmPoseApp {
             // 处理手部动作
             this.updateHandGestureInstructions(poseKey);
         }
+    }
+
+    // 处理自定义动作
+    handleCustomAction(customAction) {
+        // 更新指导信息
+        this.elements.poseInstructions.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+                <h3 style="color: #667eea; margin-bottom: 15px;">🎯 ${customAction.name}</h3>
+                <p style="color: #2c3e50; margin-bottom: 10px;">
+                    ${customAction.description || '自定义动作'}
+                </p>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                    <strong>动作信息:</strong><br>
+                    • 难度等级: ${customAction.difficulty}/5<br>
+                    • 关键点数量: ${customAction.keypoints.length}个<br>
+                    • 创建时间: ${new Date(customAction.createdAt).toLocaleDateString()}
+                </div>
+                <p style="color: #7f8c8d; font-size: 14px;">
+                    请按照参考姿势摆好动作，系统将进行实时评分
+                </p>
+            </div>
+        `;
+
+        // TODO: 为自定义动作设置评分系统
+        console.log('切换到自定义动作:', customAction.name);
     }
 
     // 更新手部动作指导
@@ -1101,7 +1154,150 @@ class RhythmPoseApp {
         }
     }
 
+    // 初始化自定义动作功能
+    initializeCustomActions() {
+        // 设置动作创建完成回调
+        this.customActionCreator.setActionCreatedCallback((action) => {
+            this.onCustomActionCreated(action);
+        });
 
+        // 加载并显示自定义动作列表
+        this.updateCustomActionsList();
+    }
+
+    // 打开自定义动作创建器
+    openCustomActionCreator() {
+        this.customActionCreator.openCreator();
+    }
+
+    // 打开自定义动作管理器
+    openCustomActionManager() {
+        this.customActionManagerUI.openManager();
+    }
+
+    // 自定义动作创建完成回调
+    onCustomActionCreated(action) {
+        console.log('新的自定义动作已创建:', action.name);
+
+        // 更新动作列表
+        this.updateCustomActionsList();
+
+        // 更新动作选择器
+        this.updatePoseSelector();
+
+        // 显示成功消息
+        this.elements.poseFeedback.textContent = `自定义动作 "${action.name}" 创建成功！`;
+    }
+
+    // 更新自定义动作列表显示
+    updateCustomActionsList() {
+        const container = this.elements.customActionsList;
+        const actions = this.customActionManager.getAllActions();
+
+        if (actions.length === 0) {
+            container.innerHTML = '<p class="no-custom-actions">暂无自定义动作</p>';
+            return;
+        }
+
+        container.innerHTML = actions.map(action => `
+            <div class="custom-action-item" data-action-id="${action.id}">
+                <div class="action-info">
+                    <div class="action-name">${action.name}</div>
+                    <div class="action-description">${action.description || '无描述'}</div>
+                    <div class="action-meta">
+                        难度: ${action.difficulty}/5 |
+                        关键点: ${action.keypoints.length}个
+                    </div>
+                </div>
+                <div class="action-controls">
+                    <button class="use-action-btn" data-action-id="${action.id}">使用</button>
+                    <button class="delete-action-btn" data-action-id="${action.id}">删除</button>
+                </div>
+            </div>
+        `).join('');
+
+        // 添加事件监听器
+        container.querySelectorAll('.use-action-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const actionId = e.target.dataset.actionId;
+                this.useCustomAction(actionId);
+            });
+        });
+
+        container.querySelectorAll('.delete-action-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const actionId = e.target.dataset.actionId;
+                this.deleteCustomAction(actionId);
+            });
+        });
+    }
+
+    // 更新动作选择器，添加自定义动作
+    updatePoseSelector() {
+        const select = this.elements.poseSelect;
+        const actions = this.customActionManager.getAllActions();
+
+        // 移除现有的自定义动作选项
+        for (let i = select.options.length - 1; i >= 0; i--) {
+            const option = select.options[i];
+            if (option.value.startsWith('custom_')) {
+                select.removeChild(option);
+            }
+        }
+
+        // 添加自定义动作选项
+        actions.forEach(action => {
+            const option = document.createElement('option');
+            option.value = action.id;
+            option.textContent = `🎯 ${action.name} (自定义)`;
+            select.appendChild(option);
+        });
+    }
+
+    // 使用自定义动作
+    useCustomAction(actionId) {
+        const action = this.customActionManager.getAction(actionId);
+        if (!action) {
+            console.error('自定义动作不存在:', actionId);
+            return;
+        }
+
+        // 切换到该动作
+        this.elements.poseSelect.value = actionId;
+        this.changePose(actionId);
+
+        console.log('切换到自定义动作:', action.name);
+    }
+
+    // 删除自定义动作
+    deleteCustomAction(actionId) {
+        const action = this.customActionManager.getAction(actionId);
+        if (!action) {
+            return;
+        }
+
+        if (confirm(`确定要删除自定义动作 "${action.name}" 吗？此操作不可撤销。`)) {
+            const result = this.customActionManager.deleteAction(actionId);
+
+            if (result.success) {
+                console.log('自定义动作已删除:', action.name);
+
+                // 更新列表和选择器
+                this.updateCustomActionsList();
+                this.updatePoseSelector();
+
+                // 如果当前正在使用被删除的动作，切换到默认动作
+                if (this.currentPoseKey === actionId) {
+                    this.elements.poseSelect.value = 'yoga-auto';
+                    this.changePose('yoga-auto');
+                }
+
+                this.elements.poseFeedback.textContent = `自定义动作 "${action.name}" 已删除`;
+            } else {
+                alert('删除失败: ' + result.error);
+            }
+        }
+    }
 }
 
 // 页面加载完成后初始化应用

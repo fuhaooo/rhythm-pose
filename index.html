@@ -95,6 +95,17 @@
                         <option value="four-fingers">🖐️ 四指手势</option>
                     </select>
                 </div>
+
+                <div class="custom-actions">
+                    <h4>自定义动作</h4>
+                    <div class="custom-action-controls">
+                        <button id="create-action-btn" class="btn btn-outline">➕ 创建动作</button>
+                        <button id="manage-actions-btn" class="btn btn-outline">⚙️ 管理动作</button>
+                    </div>
+                    <div id="custom-actions-list" class="custom-actions-list">
+                        <p class="no-custom-actions">暂无自定义动作</p>
+                    </div>
+                </div>
             </div>
 
             <!-- 视频显示区域 -->
@@ -207,6 +218,11 @@
     <script src="js/hand-detector.js"></script>
     <script src="js/mediapipe-hand-detector.js"></script>
     <script src="js/scoring-system.js"></script>
+    <script src="js/custom-action-manager.js"></script>
+    <script src="js/image-processor.js"></script>
+    <script src="js/keypoint-editor.js"></script>
+    <script src="js/custom-action-creator.js"></script>
+    <script src="js/custom-action-manager-ui.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
