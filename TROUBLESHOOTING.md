@@ -12,22 +12,15 @@
 #### 解决步骤
 
 1. **检查库加载状态**
-   ```
-   访问: http://localhost:3000/debug.html
-   查看ml5.js和PoseNet功能是否正常加载
-   ```
+   - 打开浏览器开发者工具 (F12)
+   - 在控制台输入 `typeof ml5` 检查 ml5.js 是否加载
+   - 输入 `typeof ml5.poseNet` 检查 PoseNet 功能是否可用
 
 2. **检查网络连接**
    - 确保能访问CDN (unpkg.com, cdnjs.com)
    - 尝试刷新页面重新加载库
 
-3. **使用简化测试页面**
-   ```
-   访问: http://localhost:3000/simple-pose.html
-   测试基础的PoseNet功能
-   ```
-
-4. **检查浏览器控制台**
+3. **检查浏览器控制台**
    - 按F12打开开发者工具
    - 查看Console标签页的错误信息
    - 查看Network标签页确认库文件加载成功
@@ -35,8 +28,24 @@
 #### 版本兼容性
 - 推荐使用: ml5.js v0.12.2
 - 确保p5.js版本兼容 (v1.7.0)
+- 注意：不要同时加载 TensorFlow.js，会导致库冲突
 
-### 2. 摄像头无法启动
+### 2. "TypeError: d is not a function" 错误
+
+#### 问题原因
+- TensorFlow.js 与 ml5.js 版本冲突
+- 同时加载了多个机器学习库
+
+#### 解决步骤
+1. **移除 TensorFlow.js 库**
+   - 检查 HTML 中是否同时引入了 TensorFlow.js 和 ml5.js
+   - 只保留 ml5.js 和 p5.js
+
+2. **清除浏览器缓存**
+   - 按 Ctrl+Shift+R 强制刷新页面
+   - 或清除浏览器缓存后重新访问
+
+### 3. 摄像头无法启动
 
 #### 问题原因
 - 浏览器权限被拒绝

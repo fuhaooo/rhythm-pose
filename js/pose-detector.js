@@ -225,38 +225,25 @@ class PoseDetector {
                 throw new Error('视频元素未初始化');
             }
 
-            // 强制使用CPU后端避免WebGL问题
-            if (typeof tf !== 'undefined') {
-                await tf.setBackend('cpu');
-                console.log('强制使用CPU后端，当前后端:', tf.getBackend());
-            }
+            // 移除 TensorFlow.js 后端设置，避免与 ml5.js 冲突
+            // if (typeof tf !== 'undefined') {
+            //     await tf.setBackend('cpu');
+            //     console.log('强制使用CPU后端，当前后端:', tf.getBackend());
+            // }
 
-            // 检查可用的库
+            // 检查可用的库 - 只使用 ml5.js 避免冲突
             console.log('检查可用库:');
-            console.log('- window.poseDetection:', typeof window.poseDetection);
             console.log('- ml5:', typeof ml5);
             console.log('- ml5.poseNet:', typeof ml5?.poseNet);
 
-            // 优先尝试 MediaPipe Pose（性能最佳）
-            if (typeof window.poseDetection !== 'undefined') {
-                console.log('使用 MediaPipe Pose（高性能模式）...');
-                await this.initMediaPipePose();
-                return this.detector;
-            }
-            // 备选方案：TensorFlow.js PoseNet
-            else if (typeof window.poseDetection !== 'undefined') {
-                console.log('使用 TensorFlow.js PoseNet...');
-                await this.initTensorFlowPoseNet();
-                return this.detector;
-            }
-            // 最后备选：ml5.js PoseNet
-            else if (typeof ml5 !== 'undefined' && typeof ml5.poseNet === 'function') {
-                console.log('使用 ml5.js PoseNet...');
+            // 只使用 ml5.js PoseNet（避免库冲突）
+            if (typeof ml5 !== 'undefined' && typeof ml5.poseNet === 'function') {
+                console.log('使用 ml5.js PoseNet（唯一方案）...');
                 await this.initML5PoseNet();
                 return this.bodyPose;
             }
             else {
-                throw new Error('没有可用的姿态检测库');
+                throw new Error('ml5.js 库不可用，请检查库加载');
             }
 
         } catch (error) {
@@ -471,64 +458,50 @@ class PoseDetector {
         return mediaPipeMapping[index] || `point_${index}`;
     }
 
-    // ml5.js PoseNet 初始化（备选方案）
+    // ml5.js PoseNet 初始化（参考页面方式）
     async initML5PoseNet() {
-        this.bodyPose = await ml5.poseNet(this.video, {
-            architecture: 'MobileNetV1',
-            imageScaleFactor: 0.5,
-            outputStride: 16,
-            flipHorizontal: false,
-            minConfidence: this.poseConfig.minConfidence,
-            maxPoseDetections: 1,
-            scoreThreshold: 0.5,
-            detectionType: 'single'
-        });
+        return new Promise((resolve, reject) => {
+            try {
+                console.log('开始初始化 ml5.js PoseNet（参考页面方式）...');
 
-        this.detectionMethod = 'ml5';
-
-        // 设置事件监听器
-        this.bodyPose.on('pose', (results) => {
-            // 调整坐标以匹配镜像翻转的绘制
-            this.poses = results.map(result => ({
-                ...result,
-                pose: {
-                    ...result.pose,
-                    keypoints: result.pose.keypoints.map(kp => ({
-                        ...kp,
-                        position: {
-                            x: this.canvas.width - kp.position.x,  // 镜像翻转X坐标
-                            y: kp.position.y
-                        }
-                    }))
+                // 检查 ml5 是否可用
+                if (typeof ml5 === 'undefined') {
+                    throw new Error('ml5.js 库未加载');
                 }
-            }));
 
-            // 调试信息（仅在首次检测时输出）
-            if (results.length > 0 && !this._firstPoseDetection) {
-                console.log('✅ 首次检测到姿态数据，姿态数量:', results.length);
-                console.log('姿态数据结构:', results[0]);
-                if (results[0].pose && results[0].pose.keypoints) {
-                    console.log('关键点数量:', results[0].pose.keypoints.length);
-                    console.log('第一个关键点:', results[0].pose.keypoints[0]);
+                if (typeof ml5.poseNet !== 'function') {
+                    throw new Error('ml5.poseNet 不可用');
                 }
-                this._firstPoseDetection = true;
-            } else if (!this._noPoseWarning && results.length === 0) {
-                console.log('⚠️ 暂未检测到姿态');
-                this._noPoseWarning = true;
-            }
 
-            // 回调处理
-            if (this.onPoseDetected && results.length > 0) {
-                this.onPoseDetected(results[0]);
+                // 使用与参考页面完全相同的方式初始化
+                this.bodyPose = ml5.poseNet(this.video, () => {
+                    console.log('ml5.js PoseNet 模型加载完成');
+                    this.detectionMethod = 'ml5';
+                    resolve();
+                });
+
+                // 设置事件监听器 - 完全按照参考页面的方式
+                this.bodyPose.on('pose', (results) => {
+                    // 直接存储结果，与参考页面保持一致
+                    this.poses = results;
+
+                    // 回调处理 - 传递第一个姿态
+                    if (results && results.length > 0 && this.onPoseDetected) {
+                        this.onPoseDetected(results[0]);
+                    }
+                });
+
+                // 添加错误监听器
+                this.bodyPose.on('error', (error) => {
+                    console.error('ml5.js PoseNet 错误:', error);
+                    reject(error);
+                });
+
+            } catch (error) {
+                console.error('❌ ml5.js PoseNet 初始化失败:', error);
+                reject(error);
             }
         });
-
-        // 添加错误监听器
-        this.bodyPose.on('error', (error) => {
-            console.error('PoseNet错误:', error);
-        });
-
-        console.log('ml5.js PoseNet 初始化完成');
     }
 
     // 设置检测模式（保留用于兼容性，但只支持pose模式）
@@ -585,8 +558,13 @@ class PoseDetector {
             console.log('TensorFlow.js 检测已启动');
             // 启动通用检测循环
             this.startUniversalDetection();
-        } else {
-            console.log('ml5.js PoseNet检测已启动（自动模式）');
+        } else if (this.detectionMethod === 'ml5') {
+            console.log('ml5.js PoseNet检测已启动');
+            // ml5.js 使用事件驱动，不需要手动循环
+            if (!this.bodyPose) {
+                console.error('ml5.js PoseNet 模型未初始化！');
+                return false;
+            }
         }
 
         // 启动优化的绘制循环
@@ -688,7 +666,7 @@ class PoseDetector {
             cancelAnimationFrame(this.animationFrameId);
         }
 
-        console.log('🎬 启动优化绘制循环');
+
 
         let frameCount = 0;
         let lastFrameTime = 0;
@@ -723,10 +701,6 @@ class PoseDetector {
 
             // 每秒计算一次实际FPS
             if (currentTime - lastFpsTime >= 1000) {
-                const actualFPS = fpsCounter;
-                if (frameCount % 60 === 0) { // 每60帧输出一次
-                    console.log(`🎥 实际FPS: ${actualFPS}, 目标FPS: ${targetFPS}, 姿态数量: ${this.poses.length}`);
-                }
                 fpsCounter = 0;
                 lastFpsTime = currentTime;
             }
@@ -802,8 +776,13 @@ class PoseDetector {
             this._drawDebugLogged = true;
         }
 
-        // 只绘制关键点（不绘制骨架线）
+        // 绘制关键点
         this.drawEnhancedKeypoints(keypoints);
+
+        // 如果启用骨架显示，也绘制骨架
+        if (this.showSkeleton) {
+            this.drawSkeleton(keypoints);
+        }
     }
 
     // 保留原版姿态绘制（向后兼容）
@@ -813,6 +792,13 @@ class PoseDetector {
 
     // 优化的骨架绘制
     drawSkeleton(keypoints) {
+        // 如果使用 ml5.js，使用其内置的骨架数据
+        if (this.detectionMethod === 'ml5' && this.poses.length > 0 && this.poses[0].skeleton) {
+            this.drawML5Skeleton(this.poses[0].skeleton);
+            return;
+        }
+
+        // 其他方法使用手动定义的连接
         const connections = [
             [0, 1], [0, 2], [1, 3], [2, 4], // 头部
             [5, 6], [5, 7], [7, 9], [6, 8], [8, 10], // 手臂
@@ -820,7 +806,7 @@ class PoseDetector {
             [11, 13], [13, 15], [12, 14], [14, 16] // 腿部
         ];
 
-        this.ctx.strokeStyle = '#00ff00';
+        this.ctx.strokeStyle = '#ff0000'; // 红色骨架，与参考页面一致
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
 
@@ -832,20 +818,48 @@ class PoseDetector {
                 const startConfidence = startPoint.confidence || startPoint.score || 0;
                 const endConfidence = endPoint.confidence || endPoint.score || 0;
 
-                if (startConfidence > 0.5 && endConfidence > 0.5) {
-                    this.ctx.moveTo(
-                        startPoint.position.x,
-                        startPoint.position.y
-                    );
-                    this.ctx.lineTo(
-                        endPoint.position.x,
-                        endPoint.position.y
-                    );
+                if (startConfidence > 0.2 && endConfidence > 0.2) {
+                    let startX = startPoint.position.x;
+                    let startY = startPoint.position.y;
+                    let endX = endPoint.position.x;
+                    let endY = endPoint.position.y;
+
+                    // 根据检测方法决定是否需要镜像翻转
+                    if (this.detectionMethod !== 'ml5') {
+                        startX = this.canvas.width - startX;
+                        endX = this.canvas.width - endX;
+                    }
+
+                    this.ctx.moveTo(startX, startY);
+                    this.ctx.lineTo(endX, endY);
                 }
             }
         });
 
         this.ctx.stroke();
+    }
+
+    // ml5.js 专用骨架绘制（参考页面方式）
+    drawML5Skeleton(skeleton) {
+        this.ctx.strokeStyle = '#ff0000'; // 红色骨架，与参考页面一致
+        this.ctx.lineWidth = 2; // 与参考页面一致的线宽
+
+        skeleton.forEach(connection => {
+            const [partA, partB] = connection;
+            if (partA && partB) {
+                this.ctx.beginPath();
+
+                // 对于 ml5.js，由于主页面已经是镜像的，需要翻转坐标
+                let aX = this.canvas.width - partA.position.x;
+                let aY = partA.position.y;
+                let bX = this.canvas.width - partB.position.x;
+                let bY = partB.position.y;
+
+                this.ctx.moveTo(aX, aY);
+                this.ctx.lineTo(bX, bY);
+                this.ctx.stroke();
+            }
+        });
     }
 
     // 生成骨架连接（用于新API）
@@ -955,17 +969,20 @@ class PoseDetector {
         });
     }
 
-    // 关键点绘制（修复版本）
+    // 关键点绘制（参考页面方式）
     drawEnhancedKeypoints(keypoints) {
-        this.ctx.fillStyle = '#00ff00'; // 绿色关键点
+        // 使用与参考页面完全相同的绘制方式
+        this.ctx.fillStyle = '#ff0000'; // 红色关键点
+        this.ctx.strokeStyle = 'transparent'; // 无边框
+
         let drawnCount = 0;
         let totalCount = 0;
 
         keypoints.forEach((keypoint, index) => {
             totalCount++;
-            const confidence = keypoint.confidence || keypoint.score || 0;
+            const confidence = keypoint.score || keypoint.confidence || 0;
 
-            // 调试：输出前几个关键点的信息
+            // 调试：输出前几个关键点的信息（仅一次）
             if (index < 3 && !this._keypointDebugLogged) {
                 console.log(`关键点${index} (${keypoint.part}):`, {
                     position: keypoint.position,
@@ -973,9 +990,21 @@ class PoseDetector {
                 });
             }
 
-            if (confidence > 0.1) { // 降低阈值
+            // 使用与参考页面相同的阈值和绘制方式
+            if (confidence > 0.2) {
                 this.ctx.beginPath();
-                this.ctx.arc(keypoint.position.x, keypoint.position.y, 6, 0, 2 * Math.PI); // 稍大的圆点
+
+                // 对于 ml5.js，由于主页面已经是镜像的，需要再次翻转来匹配参考页面效果
+                let x = keypoint.position.x;
+                let y = keypoint.position.y;
+
+                // 主页面的画布已经是镜像的，所以 ml5.js 的坐标需要翻转
+                if (this.detectionMethod === 'ml5') {
+                    x = this.canvas.width - x; // 镜像翻转X坐标以匹配镜像画面
+                }
+
+                // 使用与参考页面相同的圆点大小
+                this.ctx.arc(x, y, 5, 0, 2 * Math.PI); // 与参考页面一致的大小
                 this.ctx.fill();
                 drawnCount++;
             }
@@ -988,7 +1017,7 @@ class PoseDetector {
 
         // 首次绘制时输出调试信息（减少输出）
         if (!this._keypointDrawDebugLogged && drawnCount > 0) {
-            console.log(`✅ 成功绘制 ${drawnCount}/${totalCount} 个姿态关键点`);
+            console.log(`✅ 成功绘制 ${drawnCount}/${totalCount} 个姿态关键点 (方法: ${this.detectionMethod})`);
             this._keypointDrawDebugLogged = true;
         }
     }

@@ -4,15 +4,16 @@
 
 ## 🎯 功能特点
 
-- **多模式检测**: 支持人体姿势、手部动作、以及组合检测
-- **实时动作识别**: 使用 ml5.js PoseNet 和 HandPose 模型进行实时检测
+- **双模式检测**: 支持人体姿势检测和手部动作检测
+- **实时动作识别**: 使用 ml5.js PoseNet 和 MediaPipe Hands 进行实时检测
 - **丰富动作库**:
   - 人体姿势：树式、战士式、平板支撑、深蹲、开合跳
   - 手部动作：挥手、点赞、比心、握拳、张开手掌
 - **智能评分系统**: 基于准确度、稳定性和持续时间的综合评分
 - **实时反馈**: 提供即时的动作指导和改进建议
-- **可视化显示**: 实时显示骨架关键点和手部关键点
+- **可视化显示**: 可选择显示/隐藏骨架关键点和手部关键点
 - **响应式设计**: 适配桌面和移动设备
+- **性能优化**: 高效的渲染循环，稳定的 20 FPS 检测
 
 ## 🚀 快速开始
 
@@ -58,7 +59,6 @@ npm run start
 3. **选择检测模式**:
    - **人体姿势**: 检测全身动作和姿态
    - **手部动作**: 专注于手部手势识别
-   - **姿势+手部**: 同时检测身体和手部动作
 4. **选择动作**: 根据检测模式选择要练习的动作
 5. **开始检测**: 点击"开始检测"按钮启动AI识别
 6. **跟随指导**: 根据动作指导完成相应姿势
@@ -94,30 +94,38 @@ npm run start
 ### 核心技术
 
 - **ml5.js**: 机器学习库，提供 PoseNet 姿态估计
+- **MediaPipe Hands**: Google 的手部检测模型
 - **p5.js**: 创意编程库，用于视频处理和可视化
 - **Vanilla JavaScript**: 原生 JavaScript 实现
 - **CSS Grid & Flexbox**: 响应式布局
+- **Canvas API**: 高性能图形渲染
 
 ### 项目结构
 
 ```
 rhythm-pose/
-├── index.html              # 主页面
+├── index.html                      # 主页面
 ├── styles/
-│   └── main.css            # 样式文件
+│   └── main.css                    # 样式文件
 ├── js/
-│   ├── main.js             # 主应用逻辑
-│   ├── pose-detector.js    # 姿态检测器
-│   ├── pose-definitions.js # 动作定义
-│   └── scoring-system.js   # 评分系统
-├── package.json            # 项目配置
-└── README.md              # 项目说明
+│   ├── main.js                     # 主应用逻辑
+│   ├── pose-detector.js            # 姿态检测器
+│   ├── hand-detector.js            # 手势检测器 (ml5.js)
+│   ├── mediapipe-hand-detector.js  # 手部检测器 (MediaPipe)
+│   ├── pose-definitions.js         # 动作定义
+│   ├── scoring-system.js           # 评分系统
+│   ├── performance-monitor.js      # 性能监控
+│   └── simple-fps-monitor.js       # FPS 监控
+├── package.json                    # 项目配置
+└── README.md                      # 项目说明
 ```
 
 ### 核心类说明
 
 - **RhythmPoseApp**: 主应用类，协调各个模块
-- **PoseDetector**: 姿态检测器，处理摄像头和 AI 模型
+- **PoseDetector**: 姿态检测器，使用 ml5.js PoseNet
+- **HandDetector**: 手势检测器，使用 ml5.js HandPose
+- **MediaPipeHandDetector**: 手部检测器，使用 MediaPipe Hands
 - **PoseDefinitions**: 动作定义，包含各种动作的标准参数
 - **ScoringSystem**: 评分系统，计算动作质量分数
 
@@ -185,6 +193,7 @@ this.detectionConfig = {
 - 摄像头质量影响检测精度
 - 某些复杂动作可能识别不够准确
 - 需要 HTTPS 环境才能访问摄像头
+- 人体姿势检测和手部检测为独立模式，不能同时进行
 
 ## 🔮 未来计划
 
