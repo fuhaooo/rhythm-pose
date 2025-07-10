@@ -317,14 +317,9 @@ class PoseDetector {
             lastDetectionTime = currentTime;
 
             try {
-                // 开始检测时间监控
-                const detectionStartTime = performance.now();
-
                 const poses = await this.detector.estimatePoses(this.video);
 
-                // 记录检测时间
-                const detectionTime = performance.now() - detectionStartTime;
-                window.simpleFPSMonitor?.recordDetectionTime(detectionTime);
+
 
                 if (poses && poses.length > 0) {
                     // 优化数据转换：根据检测方法处理不同格式
@@ -690,11 +685,8 @@ class PoseDetector {
             }
             lastFrameTime = currentTime;
 
-            // 绘制当前帧（添加渲染时间监控）
-            const renderStartTime = performance.now();
+            // 绘制当前帧
             this.drawFrame();
-            const renderTime = performance.now() - renderStartTime;
-            window.simpleFPSMonitor?.recordRenderTime(renderTime);
 
             frameCount++;
             fpsCounter++;

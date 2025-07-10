@@ -183,13 +183,7 @@ class RhythmPoseApp {
             this.toggleSkeletonDisplay(e.target.checked);
         });
 
-        // 性能监控按钮
-        const performanceBtn = document.getElementById('performance-btn');
-        if (performanceBtn) {
-            performanceBtn.addEventListener('click', () => {
-                this.togglePerformanceMonitor();
-            });
-        }
+
 
         // 页面卸载时清理资源
         window.addEventListener('beforeunload', () => {
@@ -1058,29 +1052,7 @@ class RhythmPoseApp {
         this.changePose(this.currentPoseKey);
     }
 
-    // 切换性能监控
-    togglePerformanceMonitor() {
-        if (!window.simpleFPSMonitor) {
-            console.warn('FPS监控工具未加载');
-            return;
-        }
 
-        const performanceBtn = document.getElementById('performance-btn');
-
-        if (window.simpleFPSMonitor.isEnabled) {
-            window.simpleFPSMonitor.disable();
-            performanceBtn.textContent = '性能监控';
-            performanceBtn.classList.remove('btn-warning');
-            performanceBtn.classList.add('btn-info');
-        } else {
-            window.simpleFPSMonitor.enable();
-            performanceBtn.textContent = '停止监控';
-            performanceBtn.classList.remove('btn-info');
-            performanceBtn.classList.add('btn-warning');
-
-            console.log('🔍 性能监控已启用，将在控制台显示详细报告');
-        }
-    }
 
     // 清理资源
     cleanup() {
@@ -1088,10 +1060,7 @@ class RhythmPoseApp {
             this.poseDetector.cleanup();
         }
 
-        // 禁用性能监控
-        if (window.performanceMonitor) {
-            window.performanceMonitor.disable();
-        }
+
 
         console.log('应用资源已清理');
     }
