@@ -70,31 +70,19 @@
                 <div class="pose-selector">
                     <label for="pose-select">选择动作:</label>
                     <select id="pose-select" class="select">
-                        <option value="yoga-auto">🧘‍♀️ 瑜伽动作自动识别</option>
-                        <option value="tree">🌳 树式 (瑜伽)</option>
-                        <option value="warrior">⚔️ 战士式 (瑜伽)</option>
-                        <option value="eagle">🦅 鹰式 (瑜伽)</option>
-                        <option value="dancer">💃 舞者式 (瑜伽)</option>
-                        <option value="bow">🏹 弓式 (瑜伽)</option>
-                        <option value="plank">📏 平板支撑</option>
-                        <option value="side-plank">📐 侧平板支撑</option>
-                        <option value="superman">🦸‍♂️ 超人式</option>
-                        <option value="squat">🏋️ 深蹲</option>
-                        <option value="jumping-jacks">🤸‍♀️ 开合跳</option>
-                        <option value="wave">👋 挥手</option>
-                        <option value="thumbs-up">👍 点赞</option>
-                        <option value="peace">✌️ 比心/胜利手势</option>
-                        <option value="fist">✊ 握拳</option>
-                        <option value="open-palm">🖐️ 张开手掌</option>
-                        <option value="pointing">👉 指向</option>
-                        <option value="rock-on">🤘 摇滚手势</option>
-                        <option value="ok-sign">👌 OK手势</option>
-                        <option value="call-me">🤙 打电话手势</option>
-                        <option value="gun-sign">🔫 手枪手势</option>
-                        <option value="three-fingers">🖖 三指手势</option>
-                        <option value="four-fingers">🖐️ 四指手势</option>
-                        <option value="diamond-hands">💎 Diamond Hands</option>
+                        <!-- 动作选项将由JavaScript动态生成 -->
                     </select>
+                </div>
+
+                <div class="custom-actions">
+                    <h4>自定义动作</h4>
+                    <div class="custom-action-controls">
+                        <button id="create-action-btn" class="btn btn-outline">➕ 创建动作</button>
+                        <button id="manage-actions-btn" class="btn btn-outline">⚙️ 管理动作</button>
+                    </div>
+                    <div id="custom-actions-list" class="custom-actions-list">
+                        <p class="no-custom-actions">暂无自定义动作</p>
+                    </div>
                 </div>
             </div>
 
@@ -208,6 +196,12 @@
     <script src="js/hand-detector.js"></script>
     <script src="js/mediapipe-hand-detector.js"></script>
     <script src="js/scoring-system.js"></script>
+    <script src="js/custom-action-manager.js"></script>
+    <script src="js/image-processor.js"></script>
+    <script src="js/keypoint-editor.js"></script>
+    <script src="js/visual-feedback.js"></script>
+    <script src="js/custom-action-creator.js"></script>
+    <script src="js/custom-action-manager-ui.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

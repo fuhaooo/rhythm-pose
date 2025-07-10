@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手势检测测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .gesture-info {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .gesture-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .gesture-confidence {
+            font-size: 18px;
+            color: #666;
+        }
+        .debug-info {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f1f1f1;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤚 手势检测测试</h1>
+        
+        <video id="video" autoplay muted></video>
+        
+        <div class="controls">
+            <button id="startBtn">开始检测</button>
+            <button id="stopBtn" disabled>停止检测</button>
+        </div>
+        
+        <div class="gesture-info">
+            <div class="gesture-name" id="gestureName">等待检测...</div>
+            <div class="gesture-confidence" id="gestureConfidence">置信度: 0%</div>
+        </div>
+        
+        <div class="debug-info" id="debugInfo">
+            调试信息将显示在这里...
+        </div>
+    </div>
+
+    <!-- 引入ml5.js -->
+    <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+    
+    <script>
+        class GestureTest {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.gestureName = document.getElementById('gestureName');
+                this.gestureConfidence = document.getElementById('gestureConfidence');
+                this.debugInfo = document.getElementById('debugInfo');
+                
+                this.handPose = null;
+                this.isDetecting = false;
+                
+                this.initializeEvents();
+            }
+            
+            initializeEvents() {
+                this.startBtn.addEventListener('click', () => this.startDetection());
+                this.stopBtn.addEventListener('click', () => this.stopDetection());
+            }
+            
+            async startDetection() {
+                try {
+                    // 获取摄像头权限
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { width: 640, height: 480 } 
+                    });
+                    this.video.srcObject = stream;
+                    
+                    // 等待视频加载
+                    await new Promise(resolve => {
+                        this.video.onloadedmetadata = resolve;
+                    });
+                    
+                    // 初始化ml5.js HandPose
+                    this.handPose = await ml5.handPose(this.video, {
+                        flipHorizontal: false,
+                        maxContinuousChecks: 10,
+                        detectionConfidence: 0.5,
+                        scoreThreshold: 0.5
+                    });
+                    
+                    this.handPose.on('predict', (results) => {
+                        this.processResults(results);
+                    });
+                    
+                    this.isDetecting = true;
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    
+                    this.log('手势检测已启动');
+                    
+                } catch (error) {
+                    console.error('启动检测失败:', error);
+                    this.log('错误: ' + error.message);
+                }
+            }
+            
+            stopDetection() {
+                if (this.video.srcObject) {
+                    const tracks = this.video.srcObject.getTracks();
+                    tracks.forEach(track => track.stop());
+                    this.video.srcObject = null;
+                }
+                
+                this.isDetecting = false;
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                
+                this.gestureName.textContent = '检测已停止';
+                this.gestureConfidence.textContent = '置信度: 0%';
+                
+                this.log('手势检测已停止');
+            }
+            
+            processResults(hands) {
+                if (!hands || hands.length === 0) {
+                    this.gestureName.textContent = '未检测到手部';
+                    this.gestureConfidence.textContent = '置信度: 0%';
+                    return;
+                }
+                
+                const hand = hands[0]; // 使用第一只检测到的手
+                const gesture = this.recognizeGesture(hand);
+                
+                this.gestureName.textContent = this.getGestureDisplayName(gesture.name);
+                this.gestureConfidence.textContent = `置信度: ${(gesture.confidence * 100).toFixed(1)}%`;
+                
+                this.log(`检测到手势: ${gesture.name} (${(gesture.confidence * 100).toFixed(1)}%)`);
+            }
+            
+            recognizeGesture(hand) {
+                if (!hand.keypoints || hand.keypoints.length < 21) {
+                    return { name: 'unknown', confidence: 0 };
+                }
+                
+                const keypoints = hand.keypoints;
+                
+                // 简化的手势识别逻辑
+                const thumb_tip = keypoints[4];
+                const thumb_ip = keypoints[3];
+                const index_tip = keypoints[8];
+                const index_pip = keypoints[6];
+                const middle_tip = keypoints[12];
+                const middle_pip = keypoints[10];
+                const ring_tip = keypoints[16];
+                const ring_pip = keypoints[14];
+                const pinky_tip = keypoints[20];
+                const pinky_pip = keypoints[18];
+                
+                // 计算手指是否伸直
+                const isThumbUp = thumb_tip.y < thumb_ip.y - 5;
+                const isIndexUp = index_tip.y < index_pip.y - 10;
+                const isMiddleUp = middle_tip.y < middle_pip.y - 10;
+                const isRingUp = ring_tip.y < ring_pip.y - 10;
+                const isPinkyUp = pinky_tip.y < pinky_pip.y - 10;
+                
+                const fingersUp = [isThumbUp, isIndexUp, isMiddleUp, isRingUp, isPinkyUp].filter(Boolean).length;
+                
+                // 手势识别
+                if (isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
+                    return { name: 'thumbs-up', confidence: 0.9 };
+                } else if (!isThumbUp && isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp) {
+                    return { name: 'peace', confidence: 0.9 };
+                } else if (!isThumbUp && !isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
+                    return { name: 'fist', confidence: 0.9 };
+                } else if (fingersUp === 5) {
+                    return { name: 'open-palm', confidence: 0.9 };
+                } else if (!isThumbUp && isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
+                    return { name: 'pointing', confidence: 0.9 };
+                } else if (isThumbUp && isIndexUp && !isMiddleUp && !isRingUp && isPinkyUp) {
+                    return { name: 'rock-sign', confidence: 0.8 };
+                } else {
+                    return { name: 'unknown', confidence: 0.3 };
+                }
+            }
+            
+            getGestureDisplayName(gestureName) {
+                const displayNames = {
+                    'thumbs-up': '👍 点赞',
+                    'peace': '✌️ 比心/胜利',
+                    'fist': '✊ 握拳',
+                    'open-palm': '🖐️ 张开手掌',
+                    'pointing': '👉 指向',
+                    'rock-sign': '🤘 摇滚手势',
+                    'unknown': '❓ 未知手势'
+                };
+                return displayNames[gestureName] || gestureName;
+            }
+            
+            log(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                this.debugInfo.innerHTML += `[${timestamp}] ${message}<br>`;
+                this.debugInfo.scrollTop = this.debugInfo.scrollHeight;
+            }
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            new GestureTest();
+        });
+    </script>
+</body>
+</html>

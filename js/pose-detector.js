@@ -893,6 +893,162 @@ class PoseDetector {
         return this.poses.length > 0 ? this.poses[0] : null;
     }
 
+    // 截图功能：捕获当前帧和关键点数据
+    async captureFrame() {
+        try {
+            if (!this.video || !this.canvas || !this.ctx) {
+                throw new Error('摄像头或画布未初始化');
+            }
+
+            if (this.video.readyState < 2) {
+                throw new Error('视频未准备就绪');
+            }
+
+            // 创建临时画布用于截图
+            const captureCanvas = document.createElement('canvas');
+            captureCanvas.width = this.canvas.width;
+            captureCanvas.height = this.canvas.height;
+            const captureCtx = captureCanvas.getContext('2d');
+
+            // 保存当前画布状态
+            captureCtx.save();
+
+            // 水平翻转画布以取消镜像效果（与显示保持一致）
+            captureCtx.scale(-1, 1);
+            captureCtx.translate(-captureCanvas.width, 0);
+
+            // 绘制当前视频帧
+            captureCtx.drawImage(this.video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+            // 恢复画布状态
+            captureCtx.restore();
+
+            // 获取图片数据
+            const imageDataUrl = captureCanvas.toDataURL('image/jpeg', 0.8);
+
+            // 获取当前关键点数据
+            let keypoints = null;
+            const currentPose = this.getCurrentPose();
+
+            if (currentPose && currentPose.pose && currentPose.pose.keypoints) {
+                // 转换关键点格式为标准格式
+                keypoints = this.convertKeypointsForCapture(currentPose.pose.keypoints);
+            }
+
+            const result = {
+                success: true,
+                imageData: imageDataUrl,
+                keypoints: keypoints,
+                timestamp: new Date().toISOString(),
+                videoSize: {
+                    width: captureCanvas.width,
+                    height: captureCanvas.height
+                }
+            };
+
+            console.log('截图成功，关键点数量:', keypoints ? keypoints.length : 0);
+            return result;
+
+        } catch (error) {
+            console.error('截图失败:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    // 转换关键点格式用于保存
+    convertKeypointsForCapture(keypoints) {
+        if (!keypoints || !Array.isArray(keypoints)) {
+            return [];
+        }
+
+        return keypoints.map((kp, index) => {
+            let x = kp.position ? kp.position.x : kp.x;
+            let y = kp.position ? kp.position.y : kp.y;
+            let confidence = kp.score || kp.confidence || 0;
+            let name = kp.part || kp.name || `keypoint_${index}`;
+
+            // 确保坐标是数字
+            x = typeof x === 'number' ? x : 0;
+            y = typeof y === 'number' ? y : 0;
+            confidence = typeof confidence === 'number' ? confidence : 0;
+
+            // 镜像翻转X坐标以匹配镜像显示的摄像头画面
+            // 因为截图时画布已经翻转，关键点坐标需要相应调整
+            if (this.detectionMethod === 'ml5') {
+                x = this.canvas.width - x; // ml5.js需要镜像翻转
+            }
+
+            return {
+                name: name,
+                x: x,
+                y: y,
+                confidence: confidence,
+                visible: confidence > 0.2
+            };
+        }).filter(kp => kp.confidence > 0.1); // 过滤掉置信度过低的关键点
+    }
+
+    // 对静态图片进行姿态检测
+    async detectPoseInImage(imageElement) {
+        try {
+            if (!this.bodyPose && !this.detector) {
+                throw new Error('姿态检测模型未初始化');
+            }
+
+            console.log('开始对图片进行姿态检测...');
+
+            let poses = [];
+
+            if (this.detectionMethod === 'ml5' && this.bodyPose) {
+                // ml5.js对静态图片检测支持有限，直接返回失败
+                console.log('ml5.js不支持静态图片检测，建议使用摄像头截图功能');
+                poses = [];
+            } else if (this.detector) {
+                // 使用TensorFlow.js或MediaPipe检测
+                poses = await this.detector.estimatePoses(imageElement);
+            }
+
+            if (poses && poses.length > 0) {
+                const firstPose = poses[0];
+                let keypoints = [];
+
+                if (this.detectionMethod === 'ml5') {
+                    // ml5.js格式
+                    keypoints = firstPose.pose ? firstPose.pose.keypoints : firstPose.keypoints;
+                } else {
+                    // TensorFlow.js/MediaPipe格式
+                    keypoints = firstPose.keypoints;
+                }
+
+                // 转换关键点格式
+                const convertedKeypoints = this.convertKeypointsForCapture(keypoints);
+
+                console.log('图片姿态检测成功，关键点数量:', convertedKeypoints.length);
+
+                return {
+                    success: true,
+                    keypoints: convertedKeypoints,
+                    confidence: firstPose.score || 0.8
+                };
+            } else {
+                return {
+                    success: false,
+                    error: '未检测到姿态'
+                };
+            }
+
+        } catch (error) {
+            console.error('图片姿态检测失败:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
     // 清理资源
     cleanup() {
         this.stopDetection();

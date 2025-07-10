@@ -357,6 +357,86 @@ class PoseDefinitions {
                 difficulty: 2, // 难度等级2
                 type: "body-pose", // 标记为身体姿势类型
                 accuracyThreshold: 75 // 75+准确度阈值
+            },
+
+            // 新增动作：猫式伸展
+            cat: {
+                name: "猫式伸展",
+                description: "四肢着地，拱起背部，头部向下",
+                instructions: [
+                    "1. 四肢着地，手掌在肩膀下方",
+                    "2. 膝盖在臀部下方",
+                    "3. 慢慢拱起背部，像猫一样",
+                    "4. 头部向下，看向肚脐",
+                    "5. 保持深呼吸10-15秒"
+                ],
+                keyPoints: {
+                    spine: { curve: "arched", flexibility: true },
+                    arms: { straight: true, support: true },
+                    head: { position: "down", relaxed: true }
+                },
+                duration: 15,
+                difficulty: 2
+            },
+
+            // 新增动作：眼镜蛇式
+            cobra: {
+                name: "眼镜蛇式",
+                description: "俯卧，用手臂支撑上身，胸部向上",
+                instructions: [
+                    "1. 俯卧，前额贴地",
+                    "2. 手掌放在胸部两侧",
+                    "3. 慢慢推起上身",
+                    "4. 胸部向上，肩膀远离耳朵",
+                    "5. 保持姿势15-20秒"
+                ],
+                keyPoints: {
+                    chest: { lifted: true, open: true },
+                    arms: { support: true, straight: false },
+                    legs: { grounded: true, relaxed: true }
+                },
+                duration: 20,
+                difficulty: 3
+            },
+
+            // 新增动作：鸽子式
+            pigeon: {
+                name: "鸽子式",
+                description: "一腿在前弯曲，一腿在后伸直，身体前倾",
+                instructions: [
+                    "1. 从下犬式开始",
+                    "2. 右腿向前，膝盖弯曲",
+                    "3. 左腿向后伸直",
+                    "4. 身体慢慢向前倾",
+                    "5. 保持姿势20-30秒"
+                ],
+                keyPoints: {
+                    frontLeg: { bent: true, grounded: true },
+                    backLeg: { straight: true, extended: true },
+                    torso: { forward: true, relaxed: true }
+                },
+                duration: 25,
+                difficulty: 4
+            },
+
+            // 新增动作：侧板支撑
+            sidePlank: {
+                name: "侧板支撑",
+                description: "侧卧，用一只手臂支撑身体，身体呈直线",
+                instructions: [
+                    "1. 侧卧，用右手肘支撑",
+                    "2. 身体呈一条直线",
+                    "3. 左手向上伸直",
+                    "4. 保持核心收紧",
+                    "5. 保持姿势15-30秒"
+                ],
+                keyPoints: {
+                    body: { straight: true, aligned: true },
+                    support: { arm: "stable", core: "engaged" },
+                    balance: { maintained: true }
+                },
+                duration: 25,
+                difficulty: 4
             }
         };
     }

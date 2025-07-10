@@ -16,9 +16,11 @@ class ScoringSystem {
         this.level = 1;              // 等级
         this.experience = 0;         // 经验值
         this.achievements = [];      // 成就列表
+        this.newAchievements = [];   // 新获得的成就（用于视觉反馈）
         this.streakBonus = 1.0;      // 连击奖励倍数
         this.perfectCount = 0;       // 完美动作计数
         this.goodCount = 0;          // 良好动作计数
+        this.levelUp = false;        // 等级提升标记
 
         // 姿态历史记录（用于稳定性计算）- 优化减少历史长度
         this.poseHistory = [];
@@ -121,6 +123,20 @@ class ScoringSystem {
                 return this.evaluateJumpingJacks(keypoints);
             case 'diamond-hands':
                 return this.evaluateDiamondHandsPose(keypoints);
+            case 'eagle':
+                return this.evaluateEaglePose(keypoints);
+            case 'dancer':
+                return this.evaluateDancerPose(keypoints);
+            case 'bow':
+                return this.evaluateBowPose(keypoints);
+            case 'cat':
+                return this.evaluateCatPose(keypoints);
+            case 'cobra':
+                return this.evaluateCobraPose(keypoints);
+            case 'pigeon':
+                return this.evaluatePigeonPose(keypoints);
+            case 'sidePlank':
+                return this.evaluateSidePlankPose(keypoints);
             default:
                 return 0;
         }
@@ -619,24 +635,40 @@ class ScoringSystem {
             achievements: this.achievements,
             streakBonus: this.streakBonus,
             perfectCount: this.perfectCount,
-            goodCount: this.goodCount
+            goodCount: this.goodCount,
+            levelUp: this.levelUp || false,
+            newAchievements: this.newAchievements || []
         };
     }
 
-    // 更新游戏化元素
+    // 更新游戏化元素（修复评分逻辑）
     updateGameElements() {
-        const scoreThreshold = 80; // 良好动作阈值
-        const perfectThreshold = 95; // 完美动作阈值
+        const scoreThreshold = 70; // 良好动作阈值（提高要求）
+        const perfectThreshold = 90; // 完美动作阈值（提高要求）
+        const minAccuracyForPoints = 60; // 获得分数的最低准确度要求
 
-        if (this.currentScore >= perfectThreshold) {
+        // 只有在准确度达到最低要求时才能获得分数
+        if (this.accuracyScore < minAccuracyForPoints) {
+            // 重置连击，不给分数
+            if (this.combo > this.maxCombo) {
+                this.maxCombo = this.combo;
+                this.checkAchievements('combo');
+            }
+            this.combo = 0;
+            this.streakBonus = 1.0;
+            return; // 直接返回，不增加经验值
+        }
+
+        // 根据总分判断动作质量
+        if (this.currentScore >= perfectThreshold && this.accuracyScore >= 85) {
             this.combo++;
             this.perfectCount++;
-            this.streakBonus = Math.min(this.streakBonus + 0.1, 3.0); // 最大3倍奖励
+            this.streakBonus = Math.min(this.streakBonus + 0.1, 2.5); // 降低最大奖励倍数
             this.checkAchievements('perfect');
-        } else if (this.currentScore >= scoreThreshold) {
+        } else if (this.currentScore >= scoreThreshold && this.accuracyScore >= 65) {
             this.combo++;
             this.goodCount++;
-            this.streakBonus = Math.min(this.streakBonus + 0.05, 2.0); // 最大2倍奖励
+            this.streakBonus = Math.min(this.streakBonus + 0.05, 1.8); // 降低最大奖励倍数
             this.checkAchievements('good');
         } else {
             // 重置连击
@@ -648,16 +680,27 @@ class ScoringSystem {
             this.streakBonus = 1.0;
         }
 
-        // 计算经验值和等级
-        const bonusScore = Math.floor(this.currentScore * this.streakBonus);
-        this.experience += bonusScore;
-        this.totalScore += bonusScore;
+        // 计算经验值和等级（基于准确度加权）
+        const accuracyWeight = Math.max(0.3, this.accuracyScore / 100); // 准确度权重，最低30%
+        const baseScore = Math.floor(this.currentScore * accuracyWeight);
+        const bonusScore = Math.floor(baseScore * this.streakBonus);
 
-        // 等级提升
-        const newLevel = Math.floor(this.experience / 1000) + 1;
+        // 只有在达到最低准确度时才增加经验值
+        if (this.accuracyScore >= minAccuracyForPoints) {
+            this.experience += bonusScore;
+            this.totalScore += bonusScore;
+        }
+
+        // 等级提升（提高等级要求）
+        const newLevel = Math.floor(this.experience / 1500) + 1; // 提高等级要求
         if (newLevel > this.level) {
+            const oldLevel = this.level;
             this.level = newLevel;
             this.checkAchievements('levelUp');
+            // 标记等级提升用于视觉反馈
+            this.levelUp = true;
+        } else {
+            this.levelUp = false;
         }
     }
 
@@ -706,9 +749,11 @@ class ScoringSystem {
         }
 
         // 添加新成就
+        this.newAchievements = []; // 清空之前的新成就
         newAchievements.forEach(achievement => {
             if (!this.achievements.find(a => a.name === achievement.name)) {
                 this.achievements.push(achievement);
+                this.newAchievements.push(achievement); // 记录新成就用于视觉反馈
             }
         });
     }
@@ -740,6 +785,280 @@ class ScoringSystem {
         this.streakBonus = 1.0;
         this.perfectCount = 0;
         this.goodCount = 0;
+    }
+
+    // 评估鹰式
+    evaluateEaglePose(keypoints) {
+        let score = 0;
+
+        const leftKnee = this.getKeypoint(keypoints, 'leftKnee');
+        const rightKnee = this.getKeypoint(keypoints, 'rightKnee');
+        const leftShoulder = this.getKeypoint(keypoints, 'leftShoulder');
+        const rightShoulder = this.getKeypoint(keypoints, 'rightShoulder');
+        const leftElbow = this.getKeypoint(keypoints, 'leftElbow');
+        const rightElbow = this.getKeypoint(keypoints, 'rightElbow');
+
+        // 检查腿部缠绕（简化检测）
+        if (leftKnee && rightKnee) {
+            const legDistance = Math.abs(leftKnee.position.x - rightKnee.position.x);
+            if (legDistance < 30) { // 腿部靠近
+                score += 30;
+            }
+        }
+
+        // 检查手臂交叉
+        if (leftShoulder && rightShoulder && leftElbow && rightElbow) {
+            const armsCrossed = Math.abs(leftElbow.position.x - rightElbow.position.x) < 50;
+            if (armsCrossed) {
+                score += 40;
+            }
+        }
+
+        // 检查平衡
+        if (leftShoulder && rightShoulder) {
+            const shoulderTilt = Math.abs(leftShoulder.position.y - rightShoulder.position.y);
+            if (shoulderTilt < 20) {
+                score += 30;
+            }
+        }
+
+        return Math.min(score, 100);
+    }
+
+    // 评估舞者式
+    evaluateDancerPose(keypoints) {
+        let score = 0;
+
+        const leftKnee = this.getKeypoint(keypoints, 'leftKnee');
+        const rightKnee = this.getKeypoint(keypoints, 'rightKnee');
+        const leftAnkle = this.getKeypoint(keypoints, 'leftAnkle');
+        const rightAnkle = this.getKeypoint(keypoints, 'rightAnkle');
+        const leftWrist = this.getKeypoint(keypoints, 'leftWrist');
+        const rightWrist = this.getKeypoint(keypoints, 'rightWrist');
+
+        // 检查单腿站立（一腿直立，一腿抬起）
+        if (leftKnee && rightKnee && leftAnkle && rightAnkle) {
+            const leftLegStraight = Math.abs(leftKnee.position.y - leftAnkle.position.y) > 100;
+            const rightLegBent = rightKnee.position.y < rightAnkle.position.y;
+
+            if (leftLegStraight && rightLegBent) {
+                score += 50;
+            } else if (rightKnee.position.y < leftKnee.position.y) {
+                score += 50; // 右腿抬起
+            }
+        }
+
+        // 检查手臂伸展
+        if (leftWrist && rightWrist) {
+            const armSpread = Math.abs(leftWrist.position.x - rightWrist.position.x);
+            if (armSpread > 100) {
+                score += 30;
+            }
+        }
+
+        // 检查平衡
+        const nose = this.getKeypoint(keypoints, 'nose');
+        if (nose && leftAnkle) {
+            const balance = Math.abs(nose.position.x - leftAnkle.position.x);
+            if (balance < 50) {
+                score += 20;
+            }
+        }
+
+        return Math.min(score, 100);
+    }
+
+    // 评估弓式
+    evaluateBowPose(keypoints) {
+        let score = 0;
+
+        const leftShoulder = this.getKeypoint(keypoints, 'leftShoulder');
+        const rightShoulder = this.getKeypoint(keypoints, 'rightShoulder');
+        const leftHip = this.getKeypoint(keypoints, 'leftHip');
+        const rightHip = this.getKeypoint(keypoints, 'rightHip');
+        const leftKnee = this.getKeypoint(keypoints, 'leftKnee');
+        const rightKnee = this.getKeypoint(keypoints, 'rightKnee');
+
+        // 检查身体弓形（肩膀和臀部高度）
+        if (leftShoulder && leftHip) {
+            const backArch = leftShoulder.position.y < leftHip.position.y;
+            if (backArch) {
+                score += 40;
+            }
+        }
+
+        // 检查膝盖弯曲
+        if (leftKnee && leftHip) {
+            const kneeBent = leftKnee.position.y < leftHip.position.y;
+            if (kneeBent) {
+                score += 30;
+            }
+        }
+
+        // 检查对称性
+        if (leftShoulder && rightShoulder) {
+            const symmetry = Math.abs(leftShoulder.position.y - rightShoulder.position.y);
+            if (symmetry < 30) {
+                score += 30;
+            }
+        }
+
+        return Math.min(score, 100);
+    }
+
+    // 评估猫式
+    evaluateCatPose(keypoints) {
+        let score = 0;
+
+        const leftShoulder = this.getKeypoint(keypoints, 'leftShoulder');
+        const rightShoulder = this.getKeypoint(keypoints, 'rightShoulder');
+        const leftHip = this.getKeypoint(keypoints, 'leftHip');
+        const rightHip = this.getKeypoint(keypoints, 'rightHip');
+        const nose = this.getKeypoint(keypoints, 'nose');
+
+        // 检查四肢着地姿势（肩膀和臀部在相似高度）
+        if (leftShoulder && leftHip) {
+            const heightDiff = Math.abs(leftShoulder.position.y - leftHip.position.y);
+            if (heightDiff < 50) {
+                score += 40;
+            }
+        }
+
+        // 检查背部拱起（头部低于肩膀）
+        if (nose && leftShoulder) {
+            const headDown = nose.position.y > leftShoulder.position.y;
+            if (headDown) {
+                score += 30;
+            }
+        }
+
+        // 检查对称性
+        if (leftShoulder && rightShoulder && leftHip && rightHip) {
+            const shoulderSymmetry = Math.abs(leftShoulder.position.y - rightShoulder.position.y);
+            const hipSymmetry = Math.abs(leftHip.position.y - rightHip.position.y);
+            if (shoulderSymmetry < 20 && hipSymmetry < 20) {
+                score += 30;
+            }
+        }
+
+        return Math.min(score, 100);
+    }
+
+    // 评估眼镜蛇式
+    evaluateCobraPose(keypoints) {
+        let score = 0;
+
+        const leftShoulder = this.getKeypoint(keypoints, 'leftShoulder');
+        const rightShoulder = this.getKeypoint(keypoints, 'rightShoulder');
+        const leftHip = this.getKeypoint(keypoints, 'leftHip');
+        const nose = this.getKeypoint(keypoints, 'nose');
+        const leftElbow = this.getKeypoint(keypoints, 'leftElbow');
+        const rightElbow = this.getKeypoint(keypoints, 'rightElbow');
+
+        // 检查胸部抬起（肩膀高于臀部）
+        if (leftShoulder && leftHip) {
+            const chestLifted = leftShoulder.position.y < leftHip.position.y;
+            if (chestLifted) {
+                score += 40;
+            }
+        }
+
+        // 检查头部位置（头部抬起）
+        if (nose && leftShoulder) {
+            const headUp = nose.position.y < leftShoulder.position.y;
+            if (headUp) {
+                score += 30;
+            }
+        }
+
+        // 检查手臂支撑
+        if (leftElbow && rightElbow && leftShoulder) {
+            const armSupport = leftElbow.position.y > leftShoulder.position.y;
+            if (armSupport) {
+                score += 30;
+            }
+        }
+
+        return Math.min(score, 100);
+    }
+
+    // 评估鸽子式
+    evaluatePigeonPose(keypoints) {
+        let score = 0;
+
+        const leftKnee = this.getKeypoint(keypoints, 'leftKnee');
+        const rightKnee = this.getKeypoint(keypoints, 'rightKnee');
+        const leftAnkle = this.getKeypoint(keypoints, 'leftAnkle');
+        const rightAnkle = this.getKeypoint(keypoints, 'rightAnkle');
+        const leftShoulder = this.getKeypoint(keypoints, 'leftShoulder');
+        const leftHip = this.getKeypoint(keypoints, 'leftHip');
+
+        // 检查前腿弯曲
+        if (leftKnee && leftAnkle) {
+            const frontLegBent = Math.abs(leftKnee.position.x - leftAnkle.position.x) > 50;
+            if (frontLegBent) {
+                score += 40;
+            }
+        }
+
+        // 检查后腿伸直
+        if (rightKnee && rightAnkle) {
+            const backLegStraight = Math.abs(rightKnee.position.y - rightAnkle.position.y) > 80;
+            if (backLegStraight) {
+                score += 30;
+            }
+        }
+
+        // 检查身体前倾
+        if (leftShoulder && leftHip) {
+            const forwardLean = leftShoulder.position.y > leftHip.position.y;
+            if (forwardLean) {
+                score += 30;
+            }
+        }
+
+        return Math.min(score, 100);
+    }
+
+    // 评估侧平板支撑
+    evaluateSidePlankPose(keypoints) {
+        let score = 0;
+
+        const leftShoulder = this.getKeypoint(keypoints, 'leftShoulder');
+        const rightShoulder = this.getKeypoint(keypoints, 'rightShoulder');
+        const leftHip = this.getKeypoint(keypoints, 'leftHip');
+        const rightHip = this.getKeypoint(keypoints, 'rightHip');
+        const leftAnkle = this.getKeypoint(keypoints, 'leftAnkle');
+        const rightAnkle = this.getKeypoint(keypoints, 'rightAnkle');
+
+        // 检查身体侧向直线
+        if (leftShoulder && leftHip && leftAnkle) {
+            const bodyAlignment = this.poseDefinitions.calculateAngle(
+                leftShoulder.position, leftHip.position, leftAnkle.position
+            );
+            if (bodyAlignment > 160) {
+                score += 50;
+            }
+        }
+
+        // 检查支撑臂
+        const leftElbow = this.getKeypoint(keypoints, 'leftElbow');
+        if (leftShoulder && leftElbow) {
+            const armSupport = Math.abs(leftShoulder.position.y - leftElbow.position.y) < 30;
+            if (armSupport) {
+                score += 30;
+            }
+        }
+
+        // 检查平衡
+        if (leftShoulder && rightShoulder) {
+            const shoulderAlignment = Math.abs(leftShoulder.position.x - rightShoulder.position.x);
+            if (shoulderAlignment > 50) { // 侧向姿势
+                score += 20;
+            }
+        }
+
+        return Math.min(score, 100);
     }
 }
 
