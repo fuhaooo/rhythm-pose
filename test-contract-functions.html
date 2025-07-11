@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contract Functions Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Contract Functions Test</h1>
+    
+    <div class="container">
+        <h2>🔗 Connection</h2>
+        <button class="btn" onclick="connectWallet()">Connect Wallet</button>
+        <button class="btn" onclick="checkContractState()" disabled id="checkBtn">Check Contract State</button>
+        <div id="connectionLog" class="log">Click "Connect Wallet" to start...</div>
+    </div>
+    
+    <div class="container">
+        <h2>📝 Test Functions</h2>
+        <button class="btn" onclick="testSimpleRecord()" disabled id="simpleBtn">Test Simple Record</button>
+        <button class="btn" onclick="testVerifiedRecord()" disabled id="verifiedBtn">Test Verified Record</button>
+        <button class="btn" onclick="estimateGas()" disabled id="gasBtn">Estimate Gas</button>
+        <div id="testLog" class="log">Connect wallet first...</div>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+    <script src="js/network-config.js"></script>
+    <script src="js/smart-contract-integration.js"></script>
+
+    <script>
+        let web3, contract, userAccount;
+        const contractAddress = "0x057499692a5E14C19Fb9e4274d3e9C6Fa4ECb560"; // Enhanced Contract
+        
+        // Simplified ABI for testing
+        const contractABI = [
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "_poseName", "type": "string"},
+                    {"internalType": "enum RhythmPoseProof.PoseType", "name": "_poseType", "type": "uint8"},
+                    {"internalType": "uint256", "name": "_score", "type": "uint256"},
+                    {"internalType": "uint256", "name": "_duration", "type": "uint256"}
+                ],
+                "name": "recordPose",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "_poseName", "type": "string"},
+                    {"internalType": "enum RhythmPoseProof.PoseType", "name": "_poseType", "type": "uint8"},
+                    {"internalType": "uint256", "name": "_score", "type": "uint256"},
+                    {"internalType": "uint256", "name": "_duration", "type": "uint256"},
+                    {"internalType": "string", "name": "_zkProof", "type": "string"}
+                ],
+                "name": "recordVerifiedPose",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getContractBalance",
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "REWARD_AMOUNT",
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "rewardsEnabled",
+                "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `<span class="${type}">[${timestamp}] ${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        async function connectWallet() {
+            try {
+                log('connectionLog', '🔗 Connecting to wallet...', 'info');
+                
+                if (typeof window.ethereum === 'undefined') {
+                    throw new Error('MetaMask not detected');
+                }
+
+                web3 = new Web3(window.ethereum);
+                
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+                
+                userAccount = accounts[0];
+                log('connectionLog', `✅ Connected: ${userAccount}`, 'success');
+                
+                // Check network
+                const chainId = await web3.eth.getChainId();
+                if (chainId !== 57054) {
+                    log('connectionLog', '⚠️ Wrong network, switching to Sonic Blaze...', 'warning');
+                    
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0xDEDE' }],
+                        });
+                        log('connectionLog', '✅ Switched to Sonic Blaze Testnet', 'success');
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0xDEDE',
+                                    chainName: 'Sonic Blaze Testnet',
+                                    nativeCurrency: { name: 'Sonic', symbol: 'S', decimals: 18 },
+                                    rpcUrls: ['https://rpc.blaze.soniclabs.com'],
+                                    blockExplorerUrls: ['https://blaze.soniclabs.com/']
+                                }],
+                            });
+                            log('connectionLog', '✅ Added and switched to Sonic Blaze', 'success');
+                        }
+                    }
+                }
+                
+                // Initialize contract
+                contract = new web3.eth.Contract(contractABI, contractAddress);
+                log('connectionLog', '✅ Contract initialized', 'success');
+                
+                // Enable buttons
+                document.getElementById('checkBtn').disabled = false;
+                document.getElementById('simpleBtn').disabled = false;
+                document.getElementById('verifiedBtn').disabled = false;
+                document.getElementById('gasBtn').disabled = false;
+                
+            } catch (error) {
+                log('connectionLog', `❌ Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkContractState() {
+            try {
+                log('testLog', '🔍 Checking contract state...', 'info');
+                
+                const balance = await contract.methods.getContractBalance().call();
+                log('testLog', `💰 Contract balance: ${web3.utils.fromWei(balance, 'ether')} S`, 'info');
+                
+                const rewardAmount = await contract.methods.REWARD_AMOUNT().call();
+                log('testLog', `🎁 Reward amount: ${web3.utils.fromWei(rewardAmount, 'ether')} S`, 'info');
+                
+                const rewardsEnabled = await contract.methods.rewardsEnabled().call();
+                log('testLog', `⚙️ Rewards enabled: ${rewardsEnabled}`, 'info');
+                
+                if (parseInt(balance) < parseInt(rewardAmount)) {
+                    log('testLog', '⚠️ WARNING: Contract balance insufficient for rewards!', 'warning');
+                } else {
+                    const rewardsAvailable = Math.floor(parseInt(balance) / parseInt(rewardAmount));
+                    log('testLog', `✅ Can distribute ${rewardsAvailable} rewards`, 'success');
+                }
+                
+            } catch (error) {
+                log('testLog', `❌ State check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSimpleRecord() {
+            try {
+                log('testLog', '📝 Testing simple record (no reward)...', 'info');
+                
+                const tx = await contract.methods.recordPose(
+                    "test-pose",
+                    1, // HAND_GESTURE
+                    85,
+                    5
+                ).send({
+                    from: userAccount,
+                    gas: 300000
+                });
+                
+                log('testLog', `✅ Simple record successful: ${tx.transactionHash}`, 'success');
+                
+            } catch (error) {
+                log('testLog', `❌ Simple record failed: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        async function testVerifiedRecord() {
+            try {
+                log('testLog', '📝 Testing verified record (with reward)...', 'info');
+                
+                const zkProof = JSON.stringify({
+                    attestation: { id: "test_" + Date.now(), templateId: "rhythm_pose_achievement" },
+                    proofId: "test_proof_" + Date.now(),
+                    timestamp: Date.now(),
+                    verified: true
+                });
+                
+                const tx = await contract.methods.recordVerifiedPose(
+                    "test-verified-pose",
+                    1, // HAND_GESTURE
+                    90,
+                    10,
+                    zkProof
+                ).send({
+                    from: userAccount,
+                    gas: 500000
+                });
+                
+                log('testLog', `✅ Verified record successful: ${tx.transactionHash}`, 'success');
+                log('testLog', `🎉 You should receive 0.01 S reward!`, 'success');
+                
+            } catch (error) {
+                log('testLog', `❌ Verified record failed: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        async function estimateGas() {
+            try {
+                log('testLog', '⛽ Estimating gas for both functions...', 'info');
+                
+                // Simple record gas estimate
+                const simpleGas = await contract.methods.recordPose(
+                    "test-pose", 1, 85, 5
+                ).estimateGas({ from: userAccount });
+                log('testLog', `📊 Simple record gas: ${simpleGas}`, 'info');
+                
+                // Verified record gas estimate
+                const zkProof = JSON.stringify({ test: "data", timestamp: Date.now() });
+                const verifiedGas = await contract.methods.recordVerifiedPose(
+                    "test-verified-pose", 1, 90, 10, zkProof
+                ).estimateGas({ from: userAccount });
+                log('testLog', `📊 Verified record gas: ${verifiedGas}`, 'info');
+                
+                log('testLog', `✅ Gas estimation completed`, 'success');
+                
+            } catch (error) {
+                log('testLog', `❌ Gas estimation failed: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

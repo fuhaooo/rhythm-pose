@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contract Verification Tool</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #00ff00;
+        }
+        .btn {
+            background: #00ff00;
+            color: #1a1a1a;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:hover { background: #00cc00; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .log {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #000;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+        .critical { color: #ff00ff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Contract Verification & Debugging Tool</h1>
+        <p>Comprehensive analysis of contract deployment and function availability</p>
+        
+        <div class="section">
+            <h2>🔗 Step 1: Connect & Verify Network</h2>
+            <button class="btn" onclick="connectAndVerify()">Connect Wallet & Verify Network</button>
+            <div id="connectionLog" class="log">Click to start verification...</div>
+        </div>
+        
+        <div class="section">
+            <h2>📋 Step 2: Contract Bytecode Analysis</h2>
+            <button class="btn" onclick="analyzeContract()" disabled id="analyzeBtn">Analyze Contract Bytecode</button>
+            <div id="bytecodeLog" class="log">Connect wallet first...</div>
+        </div>
+        
+        <div class="section">
+            <h2>🔍 Step 3: Function Signature Detection</h2>
+            <button class="btn" onclick="detectFunctions()" disabled id="detectBtn">Detect Available Functions</button>
+            <div id="functionLog" class="log">Analyze contract first...</div>
+        </div>
+        
+        <div class="section">
+            <h2>⚡ Step 4: Function Call Testing</h2>
+            <button class="btn" onclick="testFunctionCalls()" disabled id="testBtn">Test Function Calls</button>
+            <div id="testLog" class="log">Detect functions first...</div>
+        </div>
+        
+        <div class="section">
+            <h2>🛠️ Step 5: Solution Recommendations</h2>
+            <button class="btn" onclick="generateSolution()" disabled id="solutionBtn">Generate Solution</button>
+            <div id="solutionLog" class="log">Complete all tests first...</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+    <script>
+        let web3, userAccount;
+        const contractAddress = "0x057499692a5E14C19Fb9e4274d3e9C6Fa4ECb560"; // Enhanced Contract
+        let contractBytecode = null;
+        let detectedFunctions = [];
+        let testResults = {};
+
+        // Known function signatures we're looking for
+        const expectedFunctions = {
+            'recordPose(string,uint8,uint256,uint256)': '0x8f9b8b5f',
+            'recordVerifiedPose(string,uint8,uint256,uint256,string)': '0x1a2b3c4d',
+            'getContractBalance()': '0x6f9fb98a',
+            'REWARD_AMOUNT()': '0x8b4c40b0',
+            'rewardsEnabled()': '0x9a7c4b2e',
+            'getContractStats()': '0x7d4c5e8f'
+        };
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `<span class="${type}">[${timestamp}] ${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        async function connectAndVerify() {
+            clearLog('connectionLog');
+            log('connectionLog', '🔗 Starting connection and verification...', 'info');
+            
+            try {
+                // Check Web3 availability
+                if (typeof window.ethereum === 'undefined') {
+                    throw new Error('MetaMask not detected');
+                }
+                
+                web3 = new Web3(window.ethereum);
+                log('connectionLog', '✅ Web3 initialized', 'success');
+                
+                // Request account access
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+                
+                userAccount = accounts[0];
+                log('connectionLog', `✅ Connected to: ${userAccount}`, 'success');
+                
+                // Check network
+                const chainId = await web3.eth.getChainId();
+                log('connectionLog', `📡 Current Chain ID: ${chainId}`, 'info');
+                
+                if (chainId !== 57054) {
+                    log('connectionLog', '⚠️ Wrong network! Switching to Sonic Blaze...', 'warning');
+                    
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0xDEDE' }],
+                        });
+                        log('connectionLog', '✅ Switched to Sonic Blaze Testnet', 'success');
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0xDEDE',
+                                    chainName: 'Sonic Blaze Testnet',
+                                    nativeCurrency: { name: 'Sonic', symbol: 'S', decimals: 18 },
+                                    rpcUrls: ['https://rpc.blaze.soniclabs.com'],
+                                    blockExplorerUrls: ['https://blaze.soniclabs.com/']
+                                }],
+                            });
+                            log('connectionLog', '✅ Added and switched to Sonic Blaze', 'success');
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                } else {
+                    log('connectionLog', '✅ Already on Sonic Blaze Testnet', 'success');
+                }
+                
+                // Verify contract exists
+                const code = await web3.eth.getCode(contractAddress);
+                if (code === '0x') {
+                    log('connectionLog', '❌ CRITICAL: No contract found at address!', 'critical');
+                    log('connectionLog', `   Address: ${contractAddress}`, 'error');
+                    log('connectionLog', '   This means the contract was not deployed or the address is wrong.', 'error');
+                } else {
+                    log('connectionLog', '✅ Contract exists at address', 'success');
+                    log('connectionLog', `   Bytecode length: ${code.length} characters`, 'info');
+                }
+                
+                // Enable next step
+                document.getElementById('analyzeBtn').disabled = false;
+                log('connectionLog', '\n🎯 Ready for contract analysis!', 'success');
+                
+            } catch (error) {
+                log('connectionLog', `❌ Connection failed: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        async function analyzeContract() {
+            clearLog('bytecodeLog');
+            log('bytecodeLog', '📋 Analyzing contract bytecode...', 'info');
+            
+            try {
+                // Get contract bytecode
+                contractBytecode = await web3.eth.getCode(contractAddress);
+                log('bytecodeLog', `📊 Bytecode length: ${contractBytecode.length} characters`, 'info');
+                
+                if (contractBytecode === '0x') {
+                    log('bytecodeLog', '❌ CRITICAL: Contract not deployed!', 'critical');
+                    return;
+                }
+                
+                // Analyze bytecode for function signatures
+                log('bytecodeLog', '🔍 Searching for function signatures in bytecode...', 'info');
+                
+                let foundSignatures = 0;
+                for (const [funcName, signature] of Object.entries(expectedFunctions)) {
+                    const sigWithoutPrefix = signature.substring(2); // Remove 0x
+                    if (contractBytecode.includes(sigWithoutPrefix)) {
+                        log('bytecodeLog', `✅ Found: ${funcName} (${signature})`, 'success');
+                        foundSignatures++;
+                    } else {
+                        log('bytecodeLog', `❌ Missing: ${funcName} (${signature})`, 'error');
+                    }
+                }
+                
+                log('bytecodeLog', `\n📊 Summary: ${foundSignatures}/${Object.keys(expectedFunctions).length} expected functions found`, 
+                    foundSignatures === Object.keys(expectedFunctions).length ? 'success' : 'warning');
+                
+                if (foundSignatures === 0) {
+                    log('bytecodeLog', '\n🚨 CRITICAL ISSUE DETECTED:', 'critical');
+                    log('bytecodeLog', '   The deployed contract does not contain the expected functions!', 'critical');
+                    log('bytecodeLog', '   This suggests the contract was deployed with different code.', 'critical');
+                }
+                
+                // Enable next step
+                document.getElementById('detectBtn').disabled = false;
+                
+            } catch (error) {
+                log('bytecodeLog', `❌ Analysis failed: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        async function detectFunctions() {
+            clearLog('functionLog');
+            log('functionLog', '🔍 Detecting available functions through calls...', 'info');
+            
+            try {
+                // Test basic contract calls to see what's actually available
+                const testCalls = [
+                    { name: 'owner()', call: () => web3.eth.call({ to: contractAddress, data: '0x8da5cb5b' }) },
+                    { name: 'totalRecords()', call: () => web3.eth.call({ to: contractAddress, data: '0x4b0e7216' }) },
+                    { name: 'getContractBalance()', call: () => web3.eth.call({ to: contractAddress, data: '0x6f9fb98a' }) },
+                    { name: 'REWARD_AMOUNT()', call: () => web3.eth.call({ to: contractAddress, data: '0x8b4c40b0' }) },
+                    { name: 'rewardsEnabled()', call: () => web3.eth.call({ to: contractAddress, data: '0x9a7c4b2e' }) }
+                ];
+                
+                detectedFunctions = [];
+                
+                for (const test of testCalls) {
+                    try {
+                        const result = await test.call();
+                        if (result && result !== '0x') {
+                            log('functionLog', `✅ ${test.name}: Available (returns: ${result.substring(0, 20)}...)`, 'success');
+                            detectedFunctions.push(test.name);
+                        } else {
+                            log('functionLog', `❌ ${test.name}: Not available or returns empty`, 'error');
+                        }
+                    } catch (callError) {
+                        log('functionLog', `❌ ${test.name}: Call failed - ${callError.message}`, 'error');
+                    }
+                }
+                
+                log('functionLog', `\n📊 Detected ${detectedFunctions.length} working functions`, 'info');
+                
+                // Try to determine what contract is actually deployed
+                if (detectedFunctions.includes('owner()') && detectedFunctions.includes('totalRecords()')) {
+                    log('functionLog', '\n🎯 Contract appears to be a basic RhythmPoseProof contract', 'info');
+                    if (!detectedFunctions.includes('REWARD_AMOUNT()')) {
+                        log('functionLog', '⚠️ WARNING: This appears to be the OLD version without reward functionality!', 'warning');
+                    }
+                } else {
+                    log('functionLog', '\n❓ Unknown contract type detected', 'warning');
+                }
+                
+                // Enable next step
+                document.getElementById('testBtn').disabled = false;
+                
+            } catch (error) {
+                log('functionLog', `❌ Function detection failed: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        async function testFunctionCalls() {
+            clearLog('testLog');
+            log('testLog', '⚡ Testing actual function calls...', 'info');
+            
+            try {
+                // Test the functions we know exist
+                testResults = {};
+                
+                // Test 1: Try to call a simple read function
+                if (detectedFunctions.includes('totalRecords()')) {
+                    try {
+                        const totalRecords = await web3.eth.call({
+                            to: contractAddress,
+                            data: '0x4b0e7216' // totalRecords()
+                        });
+                        const decoded = web3.utils.hexToNumber(totalRecords);
+                        log('testLog', `✅ totalRecords(): ${decoded}`, 'success');
+                        testResults.totalRecords = decoded;
+                    } catch (e) {
+                        log('testLog', `❌ totalRecords() failed: ${e.message}`, 'error');
+                    }
+                }
+                
+                // Test 2: Try the original recordPose function (if it exists)
+                log('testLog', '\n🧪 Testing recordPose function...', 'info');
+                try {
+                    // First try to estimate gas for the original recordPose
+                    const originalRecordPoseData = web3.eth.abi.encodeFunctionCall({
+                        name: 'recordPose',
+                        type: 'function',
+                        inputs: [
+                            { type: 'string', name: '_poseName' },
+                            { type: 'uint8', name: '_poseType' },
+                            { type: 'uint256', name: '_score' },
+                            { type: 'uint256', name: '_duration' }
+                        ]
+                    }, ['test-pose', '1', '85', '5']);
+                    
+                    const gasEstimate = await web3.eth.estimateGas({
+                        to: contractAddress,
+                        from: userAccount,
+                        data: originalRecordPoseData
+                    });
+                    
+                    log('testLog', `✅ Original recordPose gas estimate: ${gasEstimate}`, 'success');
+                    testResults.originalRecordPoseGas = gasEstimate;
+                    
+                } catch (gasError) {
+                    log('testLog', `❌ Original recordPose gas estimation failed: ${gasError.message}`, 'error');
+                    testResults.originalRecordPoseError = gasError.message;
+                }
+                
+                // Test 3: Try the new recordVerifiedPose function
+                log('testLog', '\n🧪 Testing recordVerifiedPose function...', 'info');
+                try {
+                    const verifiedRecordPoseData = web3.eth.abi.encodeFunctionCall({
+                        name: 'recordVerifiedPose',
+                        type: 'function',
+                        inputs: [
+                            { type: 'string', name: '_poseName' },
+                            { type: 'uint8', name: '_poseType' },
+                            { type: 'uint256', name: '_score' },
+                            { type: 'uint256', name: '_duration' },
+                            { type: 'string', name: '_zkProof' }
+                        ]
+                    }, ['test-verified-pose', '1', '90', '10', '{"test": "proof"}']);
+                    
+                    const gasEstimate = await web3.eth.estimateGas({
+                        to: contractAddress,
+                        from: userAccount,
+                        data: verifiedRecordPoseData
+                    });
+                    
+                    log('testLog', `✅ recordVerifiedPose gas estimate: ${gasEstimate}`, 'success');
+                    testResults.recordVerifiedPoseGas = gasEstimate;
+                    
+                } catch (gasError) {
+                    log('testLog', `❌ recordVerifiedPose gas estimation failed: ${gasError.message}`, 'error');
+                    testResults.recordVerifiedPoseError = gasError.message;
+                    
+                    if (gasError.message.includes('execution reverted')) {
+                        log('testLog', '🔍 This suggests the function exists but has validation errors', 'warning');
+                    } else if (gasError.message.includes('invalid opcode') || gasError.message.includes('function selector')) {
+                        log('testLog', '🔍 This suggests the function does not exist in the contract', 'critical');
+                    }
+                }
+                
+                // Enable solution generation
+                document.getElementById('solutionBtn').disabled = false;
+                
+            } catch (error) {
+                log('testLog', `❌ Function testing failed: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        async function generateSolution() {
+            clearLog('solutionLog');
+            log('solutionLog', '🛠️ Generating solution based on analysis...', 'info');
+            
+            log('solutionLog', '\n📊 ANALYSIS SUMMARY:', 'info');
+            log('solutionLog', '==================', 'info');
+            
+            // Determine the issue
+            if (contractBytecode === '0x') {
+                log('solutionLog', '\n🚨 ISSUE: Contract not deployed', 'critical');
+                log('solutionLog', '\n💡 SOLUTION:', 'success');
+                log('solutionLog', '1. Deploy the enhanced RhythmPoseProof contract to Sonic Blaze', 'info');
+                log('solutionLog', '2. Update the contract address in your application', 'info');
+                log('solutionLog', '3. Fund the new contract with S tokens', 'info');
+            } else if (testResults.recordVerifiedPoseError && testResults.recordVerifiedPoseError.includes('function selector')) {
+                log('solutionLog', '\n🚨 ISSUE: Old contract version deployed', 'critical');
+                log('solutionLog', '   The contract exists but lacks reward functionality', 'error');
+                log('solutionLog', '\n💡 SOLUTION OPTIONS:', 'success');
+                log('solutionLog', '\nOption A - Deploy New Contract (Recommended):', 'info');
+                log('solutionLog', '1. Deploy the enhanced contract with reward functions', 'info');
+                log('solutionLog', '2. Update contract address in application', 'info');
+                log('solutionLog', '3. Fund with S tokens for rewards', 'info');
+                log('solutionLog', '\nOption B - Use Existing Contract:', 'info');
+                log('solutionLog', '1. Modify application to use only recordPose() function', 'info');
+                log('solutionLog', '2. Implement manual reward system outside contract', 'info');
+                log('solutionLog', '3. No automatic token transfers', 'info');
+            } else if (testResults.originalRecordPoseGas && testResults.recordVerifiedPoseGas) {
+                log('solutionLog', '\n✅ GOOD NEWS: Contract functions exist!', 'success');
+                log('solutionLog', '\n🔍 ISSUE: Gas or parameter problems', 'warning');
+                log('solutionLog', '\n💡 SOLUTION:', 'success');
+                log('solutionLog', '1. Increase gas limits in transactions', 'info');
+                log('solutionLog', '2. Validate function parameters', 'info');
+                log('solutionLog', '3. Check contract balance and permissions', 'info');
+            }
+            
+            log('solutionLog', '\n🔧 IMMEDIATE ACTIONS:', 'success');
+            log('solutionLog', '==================', 'info');
+            
+            if (testResults.recordVerifiedPoseError) {
+                log('solutionLog', '\n1. CONTRACT DEPLOYMENT NEEDED:', 'critical');
+                log('solutionLog', '   - The current contract lacks reward functionality', 'error');
+                log('solutionLog', '   - Deploy contracts/RhythmPoseProof.sol to Sonic Blaze', 'info');
+                log('solutionLog', '   - Use Remix IDE or Hardhat for deployment', 'info');
+                
+                log('solutionLog', '\n2. UPDATE APPLICATION:', 'info');
+                log('solutionLog', '   - Replace contract address in smart-contract-integration.js', 'info');
+                log('solutionLog', '   - Test with the new contract address', 'info');
+                
+                log('solutionLog', '\n3. FUND CONTRACT:', 'info');
+                log('solutionLog', '   - Send S tokens to new contract address', 'info');
+                log('solutionLog', '   - Minimum 1 S for 100 rewards', 'info');
+            } else {
+                log('solutionLog', '\n1. ADJUST GAS SETTINGS:', 'info');
+                log('solutionLog', '   - Increase gas limit to 800,000', 'info');
+                log('solutionLog', '   - Add proper gas estimation', 'info');
+                
+                log('solutionLog', '\n2. VALIDATE PARAMETERS:', 'info');
+                log('solutionLog', '   - Check string lengths and data types', 'info');
+                log('solutionLog', '   - Ensure zkProof data is properly formatted', 'info');
+            }
+            
+            log('solutionLog', '\n🎯 NEXT STEPS:', 'success');
+            log('solutionLog', '1. Copy the enhanced contract code from contracts/RhythmPoseProof.sol', 'info');
+            log('solutionLog', '2. Deploy to Sonic Blaze Testnet using Remix IDE', 'info');
+            log('solutionLog', '3. Update contract address in your application', 'info');
+            log('solutionLog', '4. Test the reward functionality', 'info');
+            
+            log('solutionLog', '\n✅ Analysis complete!', 'success');
+        }
+    </script>
+</body>
+</html>

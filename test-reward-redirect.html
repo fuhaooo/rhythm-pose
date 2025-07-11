@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试奖励发放和跳转</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .button.success {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+        }
+        .info-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .demo-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            max-width: 350px;
+            animation: slideInRight 0.5s ease-out;
+            display: none;
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 测试奖励发放和跳转功能</h1>
+        <p>这个页面用于测试奖励发放成功后的通知显示和页面跳转功能</p>
+
+        <div class="test-section">
+            <h3>🎯 模拟奖励发放流程</h3>
+            <p>点击按钮模拟成功的奖励发放，查看通知效果和跳转功能</p>
+            <button class="button success" onclick="simulateRewardSuccess()">模拟奖励发放成功</button>
+            <div class="info-box">
+                <strong>测试流程：</strong><br>
+                1. 显示奖励成功通知（3秒）<br>
+                2. 自动跳转到成功页面<br>
+                3. 传递交易详情参数<br>
+                4. 在成功页面显示具体信息
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔗 直接跳转测试</h3>
+            <p>直接跳转到成功页面，查看参数传递效果</p>
+            <button class="button" onclick="directRedirect()">直接跳转到成功页面</button>
+            <div class="info-box">
+                <strong>传递的参数：</strong><br>
+                • 交易哈希: 0x1234567890abcdef...<br>
+                • 姿势名称: warrior-pose<br>
+                • 分数: 95
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📱 通知样式预览</h3>
+            <p>预览奖励成功通知的样式和动画效果</p>
+            <button class="button" onclick="showNotificationPreview()">显示通知预览</button>
+            <button class="button" onclick="hideNotificationPreview()">隐藏通知</button>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 集成测试说明</h3>
+            <div class="info-box">
+                <strong>在实际应用中的工作流程：</strong><br><br>
+                1. 用户完成姿势识别和验证<br>
+                2. 调用 recordVerifiedPose() 函数<br>
+                3. 智能合约执行，发放 0.01 S 奖励<br>
+                4. 交易成功后调用 showRewardSuccessAndRedirect()<br>
+                5. 显示3秒成功通知<br>
+                6. 自动跳转到 reward-confirmation.html<br>
+                7. 成功页面显示交易详情和庆祝动画<br><br>
+                
+                <strong>修改的文件：</strong><br>
+                • js/smart-contract-integration.js - 添加跳转逻辑<br>
+                • reward-confirmation.html - 支持参数显示
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo notification -->
+    <div id="demoNotification" class="demo-notification">
+        <div style="display: flex; align-items: center; margin-bottom: 15px;">
+            <div style="font-size: 24px; margin-right: 15px;">🎉</div>
+            <div>
+                <div style="font-weight: bold; font-size: 18px; margin-bottom: 5px;">奖励发放成功！</div>
+                <div style="font-size: 14px; opacity: 0.9;">你已获得 0.01 S 代币奖励</div>
+            </div>
+        </div>
+        <div style="font-size: 12px; opacity: 0.8;">
+            <div>• 姿势: warrior-pose</div>
+            <div>• 分数: 95</div>
+            <div>• 交易: 0x1234567890...</div>
+            <div style="margin-top: 10px; color: #f1c40f;" id="countdownText">3秒后跳转到成功页面...</div>
+        </div>
+    </div>
+
+    <script>
+        function simulateRewardSuccess() {
+            // 模拟真实的奖励发放流程
+            const mockTransactionHash = '0x1234567890abcdef1234567890abcdef12345678';
+            const mockPoseData = {
+                poseName: 'warrior-pose',
+                score: 95,
+                duration: 8000
+            };
+
+            // 显示通知
+            showRewardNotification(mockTransactionHash, mockPoseData);
+
+            // 3秒后跳转
+            setTimeout(() => {
+                const successUrl = `reward-confirmation.html?tx=${mockTransactionHash}&pose=${encodeURIComponent(mockPoseData.poseName)}&score=${mockPoseData.score}`;
+                window.location.href = successUrl;
+            }, 3000);
+        }
+
+        function showRewardNotification(transactionHash, poseData) {
+            const notification = document.getElementById('demoNotification');
+            const countdownElement = document.getElementById('countdownText');
+            
+            // 更新通知内容
+            notification.querySelector('div:nth-child(2) div:nth-child(1)').textContent = `• 姿势: ${poseData.poseName}`;
+            notification.querySelector('div:nth-child(2) div:nth-child(2)').textContent = `• 分数: ${poseData.score}`;
+            notification.querySelector('div:nth-child(2) div:nth-child(3)').textContent = `• 交易: ${transactionHash.substring(0, 10)}...`;
+            
+            // 显示通知
+            notification.style.display = 'block';
+            
+            // 倒计时
+            let countdown = 3;
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                countdownElement.textContent = `${countdown}秒后跳转到成功页面...`;
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    notification.style.display = 'none';
+                }
+            }, 1000);
+        }
+
+        function directRedirect() {
+            const mockTransactionHash = '0x1234567890abcdef1234567890abcdef12345678';
+            const successUrl = `reward-confirmation.html?tx=${mockTransactionHash}&pose=${encodeURIComponent('warrior-pose')}&score=95`;
+            window.location.href = successUrl;
+        }
+
+        function showNotificationPreview() {
+            const notification = document.getElementById('demoNotification');
+            notification.style.display = 'block';
+        }
+
+        function hideNotificationPreview() {
+            const notification = document.getElementById('demoNotification');
+            notification.style.display = 'none';
+        }
+
+        // 添加一些样式动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            .button:active {
+                animation: pulse 0.3s ease;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

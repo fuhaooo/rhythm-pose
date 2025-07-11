@@ -20,6 +20,9 @@ class RhythmPoseApp {
         this.zkTLSScoringIntegration = null;
         this.zkTLSDebugMonitor = null;
 
+        // 智能合约集成
+        this.smartContractIntegration = null;
+
         this.isInitialized = false;
         this.isDetecting = false;
         this.currentPoseKey = 'yoga-auto'; // 默认使用瑜伽自动识别
@@ -32,6 +35,26 @@ class RhythmPoseApp {
 
         // 将应用实例暴露到全局作用域，供其他模块访问
         window.rhythmPoseApp = this;
+
+        // 添加全局调试函数
+        window.debugSmartContract = () => this.debugSmartContractIntegration();
+        window.initSmartContract = () => this.initializeSmartContract();
+        window.connectSmartContract = async () => {
+            if (this.smartContractIntegration) {
+                await this.smartContractIntegration.initialize();
+                return this.smartContractIntegration.getStatus();
+            } else {
+                console.error('❌ 智能合约集成实例不存在，请先运行 initSmartContract()');
+                return null;
+            }
+        };
+        window.debugContractState = async () => {
+            if (this.smartContractIntegration) {
+                await this.smartContractIntegration.debugContractState();
+            } else {
+                console.error('❌ 智能合约集成实例不存在');
+            }
+        };
     }
 
     // 初始化应用
@@ -41,6 +64,7 @@ class RhythmPoseApp {
         this.setupCallbacks();
         this.initializeCustomActions();
         this.initializeZKTLS();
+        this.initializeSmartContract();
         this.updateUI();
         await this.checkCameraSupport();
 
@@ -1434,6 +1458,52 @@ class RhythmPoseApp {
         }
     }
 
+    // 初始化智能合约
+    initializeSmartContract() {
+        try {
+            console.log('🔧 开始初始化智能合约集成...');
+
+            // 检查 SmartContractIntegration 类是否可用
+            if (typeof SmartContractIntegration === 'undefined') {
+                throw new Error('SmartContractIntegration 类未定义，请检查 smart-contract-integration.js 是否正确加载');
+            }
+
+            // 检查 zkTLS 集成是否存在
+            if (!this.zkTLSIntegration) {
+                console.warn('⚠️ zkTLS集成尚未初始化，智能合约将在zkTLS初始化后再次尝试');
+            }
+
+            // 创建智能合约集成实例
+            this.smartContractIntegration = new SmartContractIntegration(this.zkTLSIntegration);
+
+            // 验证实例创建成功
+            if (!this.smartContractIntegration) {
+                throw new Error('智能合约集成实例创建失败');
+            }
+
+            console.log('✅ 智能合约集成实例创建成功');
+            console.log('📋 合约地址:', this.smartContractIntegration.contractConfig.address);
+            console.log('🔍 验证实例:', {
+                hasInstance: !!this.smartContractIntegration,
+                hasConfig: !!this.smartContractIntegration.contractConfig,
+                contractAddress: this.smartContractIntegration.contractConfig.address,
+                hasABI: !!this.smartContractIntegration.contractConfig.abi
+            });
+
+        } catch (error) {
+            console.error('❌ 智能合约集成初始化失败:', error);
+            console.error('📊 调试信息:', {
+                SmartContractIntegrationExists: typeof SmartContractIntegration !== 'undefined',
+                zkTLSIntegrationExists: !!this.zkTLSIntegration,
+                Web3Available: typeof Web3 !== 'undefined',
+                EthereumAvailable: typeof window.ethereum !== 'undefined'
+            });
+
+            // 设置为 null 以便后续重试
+            this.smartContractIntegration = null;
+        }
+    }
+
     // 设置zkTLS事件监听器
     setupZKTLSEventListeners() {
         // 连接钱包按钮
@@ -1490,6 +1560,26 @@ class RhythmPoseApp {
                     const userAddress = accounts[0];
                     this.zkTLSIntegration.setUserAddress(userAddress);
 
+                    // 如果智能合约集成不存在，尝试重新初始化
+                    if (!this.smartContractIntegration) {
+                        console.log('🔄 智能合约集成不存在，尝试重新初始化...');
+                        this.initializeSmartContract();
+                    }
+
+                    // 自动初始化智能合约连接
+                    if (this.smartContractIntegration && !this.smartContractIntegration.isInitialized) {
+                        try {
+                            console.log('🔗 正在初始化智能合约连接...');
+                            await this.smartContractIntegration.initialize();
+                            console.log('✅ 智能合约连接成功');
+                        } catch (contractError) {
+                            console.error('❌ 智能合约初始化失败:', contractError);
+                            // 不阻止钱包连接，只是记录错误
+                        }
+                    } else if (!this.smartContractIntegration) {
+                        console.warn('⚠️ 智能合约集成仍然不可用，奖励功能将被禁用');
+                    }
+
                     // 更新UI
                     this.updateZKTLSStatus();
 
@@ -1515,6 +1605,18 @@ class RhythmPoseApp {
 
             await this.zkTLSIntegration.initialize();
 
+            // 同时初始化智能合约（如果还没有初始化）
+            if (this.smartContractIntegration && !this.smartContractIntegration.isInitialized) {
+                try {
+                    console.log('🔗 同时初始化智能合约...');
+                    await this.smartContractIntegration.initialize();
+                    console.log('✅ 智能合约初始化成功');
+                } catch (contractError) {
+                    console.error('❌ 智能合约初始化失败:', contractError);
+                    // 不阻止 zkTLS 初始化
+                }
+            }
+
             // 更新UI
             this.updateZKTLSStatus();
 
@@ -1538,16 +1640,77 @@ class RhythmPoseApp {
                 scoreData
             );
 
+            // 自动触发智能合约交互和奖励分发
+            await this.handleSuccessfulProof(proof);
+
             // 更新UI
             this.updateProofDisplay();
             this.updateProofHistory();
 
             console.log('✅ 证明生成成功:', proof.id);
-            alert('证明生成成功！');
+            alert('证明生成成功！奖励已自动发放到您的钱包。');
         } catch (error) {
             console.error('❌ 证明生成失败:', error);
             alert('证明生成失败: ' + error.message);
         }
+    }
+
+    // 处理成功的证明生成
+    async handleSuccessfulProof(proof) {
+        try {
+            if (!this.smartContractIntegration) {
+                console.warn('⚠️ 智能合约集成未初始化，跳过链上记录');
+                return;
+            }
+
+            // 初始化智能合约连接（如果尚未初始化）
+            if (!this.smartContractIntegration.isInitialized) {
+                await this.smartContractIntegration.initialize();
+            }
+
+            // 记录证明到区块链并自动发放奖励
+            console.log('📝 正在记录证明到区块链...');
+            const result = await this.smartContractIntegration.recordVerifiedPose(proof);
+
+            if (result.success) {
+                console.log('✅ 证明已记录到区块链，奖励已发放');
+                console.log('🔗 交易哈希:', result.transactionHash);
+
+                // 监听奖励事件
+                this.smartContractIntegration.listenForRewardEvents((rewardData) => {
+                    console.log('🎉 收到奖励:', rewardData);
+                    this.showRewardNotification(rewardData);
+                });
+            }
+        } catch (error) {
+            console.error('❌ 智能合约交互失败:', error);
+            // 不阻止证明生成，只是记录错误
+        }
+    }
+
+    // 显示奖励通知
+    showRewardNotification(rewardData) {
+        // 创建奖励通知UI
+        const notification = document.createElement('div');
+        notification.className = 'reward-notification';
+        notification.innerHTML = `
+            <div class="reward-content">
+                <h3>🎉 奖励已发放！</h3>
+                <p>您获得了 ${rewardData.amount} S 代币</p>
+                <p>原因: ${rewardData.reason}</p>
+                <small>交易哈希: ${rewardData.transactionHash}</small>
+            </div>
+        `;
+
+        // 添加到页面
+        document.body.appendChild(notification);
+
+        // 3秒后自动移除
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
     }
 
     // 导出证明
@@ -1600,10 +1763,17 @@ class RhythmPoseApp {
 
         if (this.zkTLSIntegration) {
             const status = this.zkTLSIntegration.getStatus();
+            const contractStatus = this.smartContractIntegration ? this.smartContractIntegration.getStatus() : null;
 
             // 更新状态显示
             if (zkTLSStatus) {
-                zkTLSStatus.textContent = status.isInitialized ? '已就绪' : '未初始化';
+                let statusText = status.isInitialized ? '已就绪' : '未初始化';
+                if (contractStatus && contractStatus.isInitialized) {
+                    statusText += ' + 合约已连接';
+                } else if (contractStatus) {
+                    statusText += ' + 合约未连接';
+                }
+                zkTLSStatus.textContent = statusText;
                 zkTLSStatus.className = status.isInitialized ? 'status ready' : 'status';
             }
 
@@ -1619,6 +1789,16 @@ class RhythmPoseApp {
 
             if (generateProofBtn) {
                 generateProofBtn.disabled = !status.isInitialized;
+            }
+
+            // 在控制台输出详细状态（调试用）
+            if (contractStatus) {
+                console.log('🔍 系统状态:', {
+                    zkTLS: status.isInitialized ? '✅' : '❌',
+                    smartContract: contractStatus.isInitialized ? '✅' : '❌',
+                    wallet: status.userAddress ? '✅' : '❌',
+                    network: contractStatus.networkManager?.isSonicBlaze ? '✅ Sonic Blaze' : '❌ 错误网络'
+                });
             }
         }
     }
@@ -1689,6 +1869,70 @@ class RhythmPoseApp {
                 proofHistoryList.innerHTML = '<span class="no-proofs">暂无证明记录</span>';
             }
         }
+    }
+
+    // 调试智能合约集成状态
+    debugSmartContractIntegration() {
+        console.log('🔍 智能合约集成调试信息:');
+        console.log('=====================================');
+
+        // 检查依赖项
+        console.log('📦 依赖项检查:');
+        console.log('  SmartContractIntegration 类:', typeof SmartContractIntegration !== 'undefined' ? '✅ 可用' : '❌ 未定义');
+        console.log('  Web3 库:', typeof Web3 !== 'undefined' ? '✅ 可用' : '❌ 未加载');
+        console.log('  NetworkManager 类:', typeof NetworkManager !== 'undefined' ? '✅ 可用' : '❌ 未定义');
+        console.log('  window.ethereum:', typeof window.ethereum !== 'undefined' ? '✅ 可用' : '❌ 未检测到');
+
+        // 检查实例状态
+        console.log('\n🏗️ 实例状态:');
+        console.log('  this.smartContractIntegration:', !!this.smartContractIntegration ? '✅ 存在' : '❌ 不存在');
+
+        if (this.smartContractIntegration) {
+            const status = this.smartContractIntegration.getStatus();
+            console.log('  初始化状态:', status.isInitialized ? '✅ 已初始化' : '❌ 未初始化');
+            console.log('  Web3 连接:', status.hasWeb3 ? '✅ 已连接' : '❌ 未连接');
+            console.log('  合约实例:', status.hasContract ? '✅ 已创建' : '❌ 未创建');
+            console.log('  用户账户:', status.userAccount || '❌ 未设置');
+            console.log('  合约地址:', status.contractAddress);
+
+            if (status.networkManager) {
+                console.log('  网络状态:', status.networkManager.isSonicBlaze ? '✅ Sonic Blaze' : '❌ 错误网络');
+            }
+        }
+
+        // 检查 zkTLS 集成
+        console.log('\n🔗 zkTLS 集成:');
+        console.log('  this.zkTLSIntegration:', !!this.zkTLSIntegration ? '✅ 存在' : '❌ 不存在');
+
+        if (this.zkTLSIntegration) {
+            const zkStatus = this.zkTLSIntegration.getStatus();
+            console.log('  zkTLS 初始化:', zkStatus.isInitialized ? '✅ 已初始化' : '❌ 未初始化');
+            console.log('  用户地址:', zkStatus.userAddress || '❌ 未设置');
+        }
+
+        console.log('\n🛠️ 修复建议:');
+        if (typeof SmartContractIntegration === 'undefined') {
+            console.log('  ❌ 请检查 smart-contract-integration.js 是否正确加载');
+        }
+        if (!this.smartContractIntegration) {
+            console.log('  ❌ 尝试手动初始化: app.initializeSmartContract()');
+        }
+        if (this.smartContractIntegration && !this.smartContractIntegration.isInitialized) {
+            console.log('  ❌ 尝试手动连接: await app.smartContractIntegration.initialize()');
+        }
+
+        console.log('=====================================');
+
+        return {
+            dependencies: {
+                SmartContractIntegration: typeof SmartContractIntegration !== 'undefined',
+                Web3: typeof Web3 !== 'undefined',
+                NetworkManager: typeof NetworkManager !== 'undefined',
+                ethereum: typeof window.ethereum !== 'undefined'
+            },
+            instance: !!this.smartContractIntegration,
+            status: this.smartContractIntegration ? this.smartContractIntegration.getStatus() : null
+        };
     }
 }
 

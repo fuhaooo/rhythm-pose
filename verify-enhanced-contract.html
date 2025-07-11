@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Contract Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-weight: 600;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .status {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+        .highlight { 
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 Enhanced Contract Verification</h1>
+        <div class="highlight">
+            <h3>📋 New Contract Details</h3>
+            <p><strong>Address:</strong> 0x057499692a5E14C19Fb9e4274d3e9C6Fa4ECb560</p>
+            <p><strong>Network:</strong> Sonic Blaze Testnet</p>
+            <p><strong>Features:</strong> Automatic 0.01 S token rewards</p>
+        </div>
+        
+        <div class="controls">
+            <button id="connectBtn" class="btn">Connect Wallet</button>
+            <button id="verifyBtn" class="btn" disabled>Verify Enhanced Features</button>
+            <button id="fundBtn" class="btn" disabled>Check Funding Status</button>
+            <button id="testRewardBtn" class="btn" disabled>Test Reward Function</button>
+        </div>
+        
+        <div id="status" class="status">Click "Connect Wallet" to start verification...</div>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+    <script src="js/network-config.js"></script>
+
+    <script>
+        class EnhancedContractVerifier {
+            constructor() {
+                this.web3 = null;
+                this.account = null;
+                this.contract = null;
+                
+                // Enhanced contract configuration
+                this.contractAddress = "0x057499692a5E14C19Fb9e4274d3e9C6Fa4ECb560";
+                this.contractABI = [
+                    {
+                        "inputs": [],
+                        "name": "REWARD_AMOUNT",
+                        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [],
+                        "name": "rewardsEnabled",
+                        "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [],
+                        "name": "getContractBalance",
+                        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [],
+                        "name": "getContractStats",
+                        "outputs": [
+                            {"internalType": "uint256", "name": "totalUsers", "type": "uint256"},
+                            {"internalType": "uint256", "name": "totalRecordsCount", "type": "uint256"},
+                            {"internalType": "address", "name": "contractOwner", "type": "address"},
+                            {"internalType": "uint256", "name": "contractBalance", "type": "uint256"},
+                            {"internalType": "uint256", "name": "totalRewards", "type": "uint256"},
+                            {"internalType": "bool", "name": "rewardsStatus", "type": "bool"}
+                        ],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [
+                            {"internalType": "string", "name": "_poseName", "type": "string"},
+                            {"internalType": "enum RhythmPoseProof.PoseType", "name": "_poseType", "type": "uint8"},
+                            {"internalType": "uint256", "name": "_score", "type": "uint256"},
+                            {"internalType": "uint256", "name": "_duration", "type": "uint256"},
+                            {"internalType": "string", "name": "_zkProof", "type": "string"}
+                        ],
+                        "name": "recordVerifiedPose",
+                        "outputs": [],
+                        "stateMutability": "nonpayable",
+                        "type": "function"
+                    }
+                ];
+                
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('connectBtn').addEventListener('click', () => this.connectWallet());
+                document.getElementById('verifyBtn').addEventListener('click', () => this.verifyEnhancedFeatures());
+                document.getElementById('fundBtn').addEventListener('click', () => this.checkFundingStatus());
+                document.getElementById('testRewardBtn').addEventListener('click', () => this.testRewardFunction());
+            }
+            
+            log(message, type = 'info') {
+                const status = document.getElementById('status');
+                const timestamp = new Date().toLocaleTimeString();
+                const className = type;
+                status.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+                status.scrollTop = status.scrollHeight;
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
+            
+            async connectWallet() {
+                try {
+                    this.log('🔗 Connecting to wallet...', 'info');
+                    
+                    if (typeof window.ethereum === 'undefined') {
+                        throw new Error('MetaMask not detected');
+                    }
+                    
+                    this.web3 = new Web3(window.ethereum);
+                    
+                    const accounts = await window.ethereum.request({
+                        method: 'eth_requestAccounts'
+                    });
+                    
+                    this.account = accounts[0];
+                    this.log(`✅ Connected: ${this.account}`, 'success');
+                    
+                    // Check network
+                    const chainId = await this.web3.eth.getChainId();
+                    if (chainId !== 57054) {
+                        this.log('🔄 Switching to Sonic Blaze Testnet...', 'warning');
+                        await this.switchToSonicBlaze();
+                    } else {
+                        this.log('✅ Already on Sonic Blaze Testnet', 'success');
+                    }
+                    
+                    // Initialize contract
+                    this.contract = new this.web3.eth.Contract(this.contractABI, this.contractAddress);
+                    this.log('✅ Enhanced contract initialized', 'success');
+                    
+                    // Enable other buttons
+                    document.getElementById('verifyBtn').disabled = false;
+                    document.getElementById('fundBtn').disabled = false;
+                    document.getElementById('testRewardBtn').disabled = false;
+                    
+                } catch (error) {
+                    this.log(`❌ Connection failed: ${error.message}`, 'error');
+                }
+            }
+            
+            async switchToSonicBlaze() {
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0xDEDE' }],
+                    });
+                    this.log('✅ Switched to Sonic Blaze Testnet', 'success');
+                } catch (switchError) {
+                    if (switchError.code === 4902) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: '0xDEDE',
+                                chainName: 'Sonic Blaze Testnet',
+                                nativeCurrency: { name: 'Sonic', symbol: 'S', decimals: 18 },
+                                rpcUrls: ['https://rpc.blaze.soniclabs.com'],
+                                blockExplorerUrls: ['https://blaze.soniclabs.com/']
+                            }],
+                        });
+                        this.log('✅ Added and switched to Sonic Blaze', 'success');
+                    } else {
+                        throw switchError;
+                    }
+                }
+            }
+            
+            async verifyEnhancedFeatures() {
+                try {
+                    this.log('🔍 Verifying enhanced contract features...', 'info');
+                    
+                    // Test REWARD_AMOUNT function
+                    const rewardAmount = await this.contract.methods.REWARD_AMOUNT().call();
+                    const rewardInEther = this.web3.utils.fromWei(rewardAmount, 'ether');
+                    this.log(`✅ REWARD_AMOUNT: ${rewardInEther} S`, 'success');
+                    
+                    // Test rewardsEnabled function
+                    const rewardsEnabled = await this.contract.methods.rewardsEnabled().call();
+                    this.log(`✅ Rewards Enabled: ${rewardsEnabled}`, 'success');
+                    
+                    // Test getContractStats function
+                    const stats = await this.contract.methods.getContractStats().call();
+                    this.log(`✅ Contract Stats Available:`, 'success');
+                    this.log(`   Total Records: ${stats.totalRecordsCount}`, 'info');
+                    this.log(`   Contract Owner: ${stats.contractOwner}`, 'info');
+                    this.log(`   Rewards Status: ${stats.rewardsStatus}`, 'info');
+                    
+                    this.log('\n🎉 All enhanced features verified successfully!', 'success');
+                    this.log('✅ This is definitely the enhanced contract with reward functionality', 'success');
+                    
+                } catch (error) {
+                    this.log(`❌ Enhanced features verification failed: ${error.message}`, 'error');
+                }
+            }
+            
+            async checkFundingStatus() {
+                try {
+                    this.log('💰 Checking contract funding status...', 'info');
+                    
+                    const balance = await this.contract.methods.getContractBalance().call();
+                    const balanceInEther = this.web3.utils.fromWei(balance, 'ether');
+                    
+                    const rewardAmount = await this.contract.methods.REWARD_AMOUNT().call();
+                    const rewardInEther = this.web3.utils.fromWei(rewardAmount, 'ether');
+                    
+                    this.log(`📊 Contract Balance: ${balanceInEther} S`, 'info');
+                    this.log(`🎁 Reward Amount: ${rewardInEther} S per proof`, 'info');
+                    
+                    if (parseFloat(balanceInEther) >= parseFloat(rewardInEther)) {
+                        const rewardsAvailable = Math.floor(parseFloat(balanceInEther) / parseFloat(rewardInEther));
+                        this.log(`✅ Contract is funded! Can distribute ${rewardsAvailable} rewards`, 'success');
+                        
+                        if (rewardsAvailable < 10) {
+                            this.log(`⚠️ Low balance warning: Consider adding more S tokens`, 'warning');
+                        }
+                    } else {
+                        this.log(`❌ Contract needs funding!`, 'error');
+                        this.log(`💡 Send S tokens to: ${this.contractAddress}`, 'warning');
+                        this.log(`💡 Minimum needed: ${rewardInEther} S`, 'warning');
+                    }
+                    
+                } catch (error) {
+                    this.log(`❌ Funding check failed: ${error.message}`, 'error');
+                }
+            }
+            
+            async testRewardFunction() {
+                try {
+                    this.log('⚡ Testing reward function (gas estimation)...', 'info');
+                    
+                    // Test gas estimation for recordVerifiedPose
+                    const gasEstimate = await this.contract.methods.recordVerifiedPose(
+                        "test-enhanced-pose",
+                        1, // HAND_GESTURE
+                        95,
+                        8,
+                        JSON.stringify({test: "zkproof", timestamp: Date.now()})
+                    ).estimateGas({ from: this.account });
+                    
+                    this.log(`✅ Gas estimation successful: ${gasEstimate}`, 'success');
+                    this.log(`💡 This confirms the recordVerifiedPose function exists and works`, 'success');
+                    this.log(`🎯 Ready for real zkTLS proof generation with automatic rewards!`, 'success');
+                    
+                } catch (error) {
+                    this.log(`❌ Reward function test failed: ${error.message}`, 'error');
+                    
+                    if (error.message.includes('insufficient funds')) {
+                        this.log(`💡 Contract needs more funding for rewards`, 'warning');
+                    } else if (error.message.includes('execution reverted')) {
+                        this.log(`💡 Function exists but has validation requirements`, 'warning');
+                    }
+                }
+            }
+        }
+        
+        // Initialize verifier when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new EnhancedContractVerifier();
+        });
+    </script>
+</body>
+</html>

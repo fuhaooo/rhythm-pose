@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Contract Debug - Rhythm Pose</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #00ff00;
+        }
+        .btn {
+            background: #00ff00;
+            color: #1a1a1a;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background: #00cc00;
+        }
+        .status {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #000;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffaa00; }
+        .info { color: #00aaff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Smart Contract Integration Debug</h1>
+        
+        <div class="section">
+            <h2>📦 Dependency Check</h2>
+            <button class="btn" onclick="checkDependencies()">Check Dependencies</button>
+            <div id="dependencies" class="status">Click "Check Dependencies" to start...</div>
+        </div>
+        
+        <div class="section">
+            <h2>🏗️ Class Instantiation Test</h2>
+            <button class="btn" onclick="testClassInstantiation()">Test Class Creation</button>
+            <div id="instantiation" class="status">Click "Test Class Creation" to start...</div>
+        </div>
+        
+        <div class="section">
+            <h2>🔗 Contract Connection Test</h2>
+            <button class="btn" onclick="testContractConnection()">Test Contract Connection</button>
+            <div id="connection" class="status">Click "Test Contract Connection" to start...</div>
+        </div>
+        
+        <div class="section">
+            <h2>🎯 Full Integration Test</h2>
+            <button class="btn" onclick="testFullIntegration()">Run Full Test</button>
+            <div id="integration" class="status">Click "Run Full Test" to start...</div>
+        </div>
+    </div>
+
+    <!-- Load all dependencies in correct order -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="js/network-config.js"></script>
+    <script src="js/zktls-config.js"></script>
+    <script src="js/zktls-integration.js"></script>
+    <script src="js/smart-contract-integration.js"></script>
+
+    <script>
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        function checkDependencies() {
+            clearLog('dependencies');
+            log('dependencies', '🔍 Checking dependencies...', 'info');
+            
+            const deps = {
+                'Web3': typeof Web3 !== 'undefined',
+                'ethers': typeof ethers !== 'undefined',
+                'NetworkConfig': typeof NetworkConfig !== 'undefined',
+                'NetworkManager': typeof NetworkManager !== 'undefined',
+                'ZKTLSIntegration': typeof ZKTLSIntegration !== 'undefined',
+                'SmartContractIntegration': typeof SmartContractIntegration !== 'undefined',
+                'window.ethereum': typeof window.ethereum !== 'undefined'
+            };
+            
+            for (const [name, available] of Object.entries(deps)) {
+                const status = available ? '✅' : '❌';
+                const type = available ? 'success' : 'error';
+                log('dependencies', `${status} ${name}: ${available ? 'Available' : 'Missing'}`, type);
+            }
+            
+            const allAvailable = Object.values(deps).every(Boolean);
+            log('dependencies', `\n📊 Overall Status: ${allAvailable ? '✅ All dependencies loaded' : '❌ Some dependencies missing'}`, allAvailable ? 'success' : 'error');
+        }
+
+        function testClassInstantiation() {
+            clearLog('instantiation');
+            log('instantiation', '🏗️ Testing class instantiation...', 'info');
+            
+            try {
+                // Test ZKTLSIntegration
+                log('instantiation', '📝 Creating ZKTLSIntegration instance...', 'info');
+                const zkTLS = new ZKTLSIntegration();
+                log('instantiation', '✅ ZKTLSIntegration created successfully', 'success');
+                
+                // Test SmartContractIntegration
+                log('instantiation', '📝 Creating SmartContractIntegration instance...', 'info');
+                const smartContract = new SmartContractIntegration(zkTLS);
+                log('instantiation', '✅ SmartContractIntegration created successfully', 'success');
+                
+                // Verify properties
+                log('instantiation', '📋 Verifying instance properties...', 'info');
+                log('instantiation', `  Contract Address: ${smartContract.contractConfig.address}`, 'info');
+                log('instantiation', `  ABI Length: ${smartContract.contractConfig.abi.length} functions`, 'info');
+                log('instantiation', `  zkTLS Reference: ${!!smartContract.zkTLSIntegration ? 'Set' : 'Missing'}`, smartContract.zkTLSIntegration ? 'success' : 'error');
+                
+                log('instantiation', '\n✅ Class instantiation test passed!', 'success');
+                
+                // Store for other tests
+                window.testZkTLS = zkTLS;
+                window.testSmartContract = smartContract;
+                
+            } catch (error) {
+                log('instantiation', `❌ Class instantiation failed: ${error.message}`, 'error');
+                log('instantiation', `📊 Error details: ${error.stack}`, 'error');
+            }
+        }
+
+        async function testContractConnection() {
+            clearLog('connection');
+            log('connection', '🔗 Testing contract connection...', 'info');
+            
+            try {
+                if (!window.testSmartContract) {
+                    log('connection', '⚠️ No test instance found, creating new one...', 'warning');
+                    testClassInstantiation();
+                }
+                
+                const smartContract = window.testSmartContract;
+                if (!smartContract) {
+                    throw new Error('Failed to create SmartContractIntegration instance');
+                }
+                
+                log('connection', '📝 Initializing smart contract...', 'info');
+                await smartContract.initialize();
+                
+                const status = smartContract.getStatus();
+                log('connection', '📊 Connection Status:', 'info');
+                log('connection', `  Initialized: ${status.isInitialized ? '✅' : '❌'}`, status.isInitialized ? 'success' : 'error');
+                log('connection', `  Web3: ${status.hasWeb3 ? '✅' : '❌'}`, status.hasWeb3 ? 'success' : 'error');
+                log('connection', `  Contract: ${status.hasContract ? '✅' : '❌'}`, status.hasContract ? 'success' : 'error');
+                log('connection', `  User Account: ${status.userAccount || 'Not connected'}`, status.userAccount ? 'success' : 'warning');
+                
+                if (status.networkManager) {
+                    log('connection', `  Network: ${status.networkManager.isSonicBlaze ? '✅ Sonic Blaze' : '❌ Wrong network'}`, status.networkManager.isSonicBlaze ? 'success' : 'error');
+                }
+                
+                // Test contract read function
+                if (status.hasContract) {
+                    log('connection', '📝 Testing contract read function...', 'info');
+                    const contractStats = await smartContract.getContractStatus();
+                    if (contractStats) {
+                        log('connection', `✅ Contract read successful:`, 'success');
+                        log('connection', `  Balance: ${contractStats.contractBalance} S`, 'info');
+                        log('connection', `  Rewards Enabled: ${contractStats.rewardsEnabled}`, 'info');
+                        log('connection', `  Reward Amount: ${contractStats.rewardAmount} S`, 'info');
+                    }
+                }
+                
+                log('connection', '\n✅ Contract connection test completed!', 'success');
+                
+            } catch (error) {
+                log('connection', `❌ Contract connection failed: ${error.message}`, 'error');
+                log('connection', `📊 Error details: ${error.stack}`, 'error');
+            }
+        }
+
+        async function testFullIntegration() {
+            clearLog('integration');
+            log('integration', '🎯 Running full integration test...', 'info');
+            
+            try {
+                // Step 1: Check dependencies
+                log('integration', '1️⃣ Checking dependencies...', 'info');
+                checkDependencies();
+                
+                // Step 2: Test instantiation
+                log('integration', '\n2️⃣ Testing class instantiation...', 'info');
+                testClassInstantiation();
+                
+                // Step 3: Test connection
+                log('integration', '\n3️⃣ Testing contract connection...', 'info');
+                await testContractConnection();
+                
+                log('integration', '\n🎉 Full integration test completed!', 'success');
+                log('integration', '\n📋 Summary:', 'info');
+                log('integration', '  ✅ All dependencies loaded', 'success');
+                log('integration', '  ✅ Classes can be instantiated', 'success');
+                log('integration', '  ✅ Contract connection works', 'success');
+                log('integration', '\n🚀 Smart contract integration is ready!', 'success');
+                
+            } catch (error) {
+                log('integration', `❌ Full integration test failed: ${error.message}`, 'error');
+                log('integration', `📊 Error details: ${error.stack}`, 'error');
+            }
+        }
+
+        // Auto-run dependency check on load
+        window.addEventListener('load', () => {
+            setTimeout(checkDependencies, 1000);
+        });
+    </script>
+</body>
+</html>

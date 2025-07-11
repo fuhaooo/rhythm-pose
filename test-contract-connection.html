@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contract Connection Test - Sonic Blaze</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-weight: 600;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .status {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Contract Connection Test</h1>
+        <p>Test connection to your deployed contract on Sonic Blaze Testnet</p>
+        
+        <div class="controls">
+            <button id="connectBtn" class="btn">Connect Wallet</button>
+            <button id="checkNetworkBtn" class="btn" disabled>Check Network</button>
+            <button id="testContractBtn" class="btn" disabled>Test Contract</button>
+            <button id="checkBalanceBtn" class="btn" disabled>Check Balance</button>
+            <button id="getStatsBtn" class="btn" disabled>Get Stats</button>
+        </div>
+        
+        <div id="status" class="status">Ready to test...</div>
+    </div>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+    <script src="js/network-config.js"></script>
+
+    <script>
+        class ContractTester {
+            constructor() {
+                this.web3 = null;
+                this.account = null;
+                this.contract = null;
+                this.networkManager = null;
+                
+                // Your contract configuration (Updated to Enhanced Contract)
+                this.contractAddress = "0x057499692a5E14C19Fb9e4274d3e9C6Fa4ECb560";
+                this.contractABI = [
+                    {
+                        "inputs": [],
+                        "name": "getContractBalance",
+                        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [],
+                        "name": "getContractStats",
+                        "outputs": [
+                            {"internalType": "uint256", "name": "totalUsers", "type": "uint256"},
+                            {"internalType": "uint256", "name": "totalRecordsCount", "type": "uint256"},
+                            {"internalType": "address", "name": "contractOwner", "type": "address"},
+                            {"internalType": "uint256", "name": "contractBalance", "type": "uint256"},
+                            {"internalType": "uint256", "name": "totalRewards", "type": "uint256"},
+                            {"internalType": "bool", "name": "rewardsStatus", "type": "bool"}
+                        ],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [],
+                        "name": "getRewardConfig",
+                        "outputs": [
+                            {"internalType": "uint256", "name": "rewardAmount", "type": "uint256"},
+                            {"internalType": "bool", "name": "enabled", "type": "bool"}
+                        ],
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "inputs": [],
+                        "name": "REWARD_AMOUNT",
+                        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                        "stateMutability": "view",
+                        "type": "function"
+                    }
+                ];
+                
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('connectBtn').addEventListener('click', () => this.connectWallet());
+                document.getElementById('checkNetworkBtn').addEventListener('click', () => this.checkNetwork());
+                document.getElementById('testContractBtn').addEventListener('click', () => this.testContract());
+                document.getElementById('checkBalanceBtn').addEventListener('click', () => this.checkBalance());
+                document.getElementById('getStatsBtn').addEventListener('click', () => this.getStats());
+            }
+            
+            log(message, type = 'info') {
+                const status = document.getElementById('status');
+                const timestamp = new Date().toLocaleTimeString();
+                const className = type;
+                status.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+                status.scrollTop = status.scrollHeight;
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
+            
+            async connectWallet() {
+                try {
+                    this.log('Connecting to wallet...', 'info');
+                    
+                    if (typeof window.ethereum === 'undefined') {
+                        throw new Error('MetaMask not detected');
+                    }
+                    
+                    // Initialize Web3
+                    this.web3 = new Web3(window.ethereum);
+                    
+                    // Request account access
+                    const accounts = await window.ethereum.request({
+                        method: 'eth_requestAccounts'
+                    });
+                    
+                    if (accounts.length === 0) {
+                        throw new Error('No accounts found');
+                    }
+                    
+                    this.account = accounts[0];
+                    this.log(`✅ Connected to: ${this.account}`, 'success');
+                    
+                    // Initialize network manager
+                    if (typeof NetworkManager !== 'undefined') {
+                        this.networkManager = new NetworkManager();
+                        await this.networkManager.initialize();
+                        this.log('✅ Network manager initialized', 'success');
+                    }
+                    
+                    // Enable other buttons
+                    document.getElementById('checkNetworkBtn').disabled = false;
+                    document.getElementById('testContractBtn').disabled = false;
+                    document.getElementById('checkBalanceBtn').disabled = false;
+                    document.getElementById('getStatsBtn').disabled = false;
+                    
+                } catch (error) {
+                    this.log(`❌ Wallet connection failed: ${error.message}`, 'error');
+                }
+            }
+            
+            async checkNetwork() {
+                try {
+                    this.log('Checking network...', 'info');
+                    
+                    const chainId = await this.web3.eth.getChainId();
+                    const chainIdHex = '0x' + chainId.toString(16);
+                    
+                    this.log(`Current Chain ID: ${chainId} (${chainIdHex})`, 'info');
+                    
+                    if (chainId === 57054) {
+                        this.log('✅ Connected to Sonic Blaze Testnet', 'success');
+                    } else {
+                        this.log('⚠️ Not on Sonic Blaze Testnet, switching...', 'warning');
+                        
+                        if (this.networkManager) {
+                            await this.networkManager.switchToSonicBlaze();
+                            this.log('✅ Switched to Sonic Blaze Testnet', 'success');
+                        }
+                    }
+                    
+                } catch (error) {
+                    this.log(`❌ Network check failed: ${error.message}`, 'error');
+                }
+            }
+            
+            async testContract() {
+                try {
+                    this.log('Testing contract connection...', 'info');
+                    
+                    // Initialize contract
+                    this.contract = new this.web3.eth.Contract(this.contractABI, this.contractAddress);
+                    this.log(`✅ Contract initialized at: ${this.contractAddress}`, 'success');
+                    
+                    // Test a simple read function
+                    const rewardAmount = await this.contract.methods.REWARD_AMOUNT().call();
+                    const rewardInEther = this.web3.utils.fromWei(rewardAmount, 'ether');
+                    this.log(`✅ Reward amount: ${rewardInEther} S`, 'success');
+                    
+                } catch (error) {
+                    this.log(`❌ Contract test failed: ${error.message}`, 'error');
+                }
+            }
+            
+            async checkBalance() {
+                try {
+                    this.log('Checking contract balance...', 'info');
+                    
+                    if (!this.contract) {
+                        throw new Error('Contract not initialized');
+                    }
+                    
+                    const balance = await this.contract.methods.getContractBalance().call();
+                    const balanceInEther = this.web3.utils.fromWei(balance, 'ether');
+                    
+                    this.log(`💰 Contract balance: ${balanceInEther} S`, 'success');
+                    
+                    if (parseFloat(balanceInEther) < 0.01) {
+                        this.log('⚠️ Low balance! Contract needs funding for rewards.', 'warning');
+                    } else {
+                        const rewardsAvailable = Math.floor(parseFloat(balanceInEther) / 0.01);
+                        this.log(`✅ Can distribute ${rewardsAvailable} rewards`, 'success');
+                    }
+                    
+                } catch (error) {
+                    this.log(`❌ Balance check failed: ${error.message}`, 'error');
+                }
+            }
+            
+            async getStats() {
+                try {
+                    this.log('Getting contract statistics...', 'info');
+                    
+                    if (!this.contract) {
+                        throw new Error('Contract not initialized');
+                    }
+                    
+                    const stats = await this.contract.methods.getContractStats().call();
+                    const rewardConfig = await this.contract.methods.getRewardConfig().call();
+                    
+                    this.log('📊 Contract Statistics:', 'info');
+                    this.log(`  Total Records: ${stats.totalRecordsCount}`, 'info');
+                    this.log(`  Contract Owner: ${stats.contractOwner}`, 'info');
+                    this.log(`  Balance: ${this.web3.utils.fromWei(stats.contractBalance, 'ether')} S`, 'info');
+                    this.log(`  Total Rewards Distributed: ${this.web3.utils.fromWei(stats.totalRewards, 'ether')} S`, 'info');
+                    this.log(`  Rewards Enabled: ${stats.rewardsStatus}`, 'info');
+                    this.log(`  Reward Amount: ${this.web3.utils.fromWei(rewardConfig.rewardAmount, 'ether')} S`, 'info');
+                    
+                } catch (error) {
+                    this.log(`❌ Stats retrieval failed: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        // Initialize tester when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ContractTester();
+        });
+    </script>
+</body>
+</html>

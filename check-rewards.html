@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>检查奖励发放状态</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .info-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        .success { color: #2ecc71; }
+        .error { color: #e74c3c; }
+        .warning { color: #f39c12; }
+        .info { color: #3498db; }
+        .highlight { color: #f1c40f; font-weight: bold; }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online { background-color: #2ecc71; }
+        .status-offline { background-color: #e74c3c; }
+        .status-warning { background-color: #f39c12; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 奖励发放状态检查</h1>
+        <p>检查智能合约的奖励发放功能是否正常工作</p>
+
+        <div class="section">
+            <h3>🔗 连接状态</h3>
+            <div id="connectionStatus" class="info-box">正在检查连接...</div>
+            <button class="button" onclick="checkConnection()">重新检查连接</button>
+        </div>
+
+        <div class="section">
+            <h3>💎 合约余额与奖励配置</h3>
+            <div id="contractInfo" class="info-box">点击按钮查看合约信息...</div>
+            <button class="button" onclick="checkContractBalance()">查看合约余额</button>
+            <button class="button" onclick="checkRewardConfig()">查看奖励配置</button>
+        </div>
+
+        <div class="section">
+            <h3>👤 用户奖励记录</h3>
+            <div id="userRewards" class="info-box">点击按钮查看用户奖励...</div>
+            <button class="button" onclick="checkUserRewards()">查看我的奖励</button>
+            <button class="button" onclick="checkUserBalance()">查看我的余额</button>
+        </div>
+
+        <div class="section">
+            <h3>📊 合约统计</h3>
+            <div id="contractStats" class="info-box">点击按钮查看统计信息...</div>
+            <button class="button" onclick="checkContractStats()">查看合约统计</button>
+        </div>
+
+        <div class="section">
+            <h3>🔍 最近交易记录</h3>
+            <div id="recentTransactions" class="info-box">点击按钮查看最近交易...</div>
+            <button class="button" onclick="checkRecentTransactions()">查看最近交易</button>
+        </div>
+
+        <div class="section">
+            <h3>🧪 测试奖励发放</h3>
+            <div id="testResults" class="info-box">这里会显示测试结果...</div>
+            <button class="button" onclick="testRewardSystem()" id="testBtn">测试奖励系统</button>
+        </div>
+    </div>
+
+    <!-- Load dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+    <script src="js/network-config.js"></script>
+    <script src="js/smart-contract-integration.js"></script>
+
+    <script>
+        let smartContract = null;
+        let userAccount = null;
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        async function checkConnection() {
+            clearLog('connectionStatus');
+            log('connectionStatus', '🔍 检查连接状态...', 'info');
+
+            try {
+                // Check Web3
+                if (typeof Web3 === 'undefined') {
+                    throw new Error('Web3 未加载');
+                }
+                log('connectionStatus', '✅ Web3 已加载', 'success');
+
+                // Check MetaMask
+                if (typeof window.ethereum === 'undefined') {
+                    throw new Error('MetaMask 未安装');
+                }
+                log('connectionStatus', '✅ MetaMask 已检测到', 'success');
+
+                // Initialize Web3
+                const web3 = new Web3(window.ethereum);
+                
+                // Request account access
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                if (accounts.length === 0) {
+                    throw new Error('没有连接的账户');
+                }
+
+                userAccount = accounts[0];
+                log('connectionStatus', `✅ 已连接账户: ${userAccount}`, 'success');
+
+                // Check network
+                const networkId = await web3.eth.net.getId();
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                
+                log('connectionStatus', `🌐 网络ID: ${networkId}`, 'info');
+                log('connectionStatus', `🔗 链ID: ${chainId}`, 'info');
+
+                if (networkId !== 57054) {
+                    log('connectionStatus', '⚠️ 不在 Sonic Blaze Testnet 上', 'warning');
+                } else {
+                    log('connectionStatus', '✅ 已连接到 Sonic Blaze Testnet', 'success');
+                }
+
+                // Initialize smart contract
+                if (typeof SmartContractIntegration !== 'undefined') {
+                    smartContract = new SmartContractIntegration();
+                    await smartContract.initialize();
+                    log('connectionStatus', '✅ 智能合约已初始化', 'success');
+                } else {
+                    throw new Error('SmartContractIntegration 类未找到');
+                }
+
+            } catch (error) {
+                log('connectionStatus', `❌ 连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkContractBalance() {
+            clearLog('contractInfo');
+            
+            if (!smartContract) {
+                log('contractInfo', '❌ 请先检查连接', 'error');
+                return;
+            }
+
+            try {
+                log('contractInfo', '🔍 查询合约余额...', 'info');
+                
+                const balance = await smartContract.contract.methods.getContractBalance().call();
+                const balanceEther = smartContract.web3.utils.fromWei(balance, 'ether');
+                
+                log('contractInfo', `💰 合约余额: ${balanceEther} S`, 'highlight');
+                
+                if (parseFloat(balanceEther) > 0) {
+                    log('contractInfo', '✅ 合约有足够余额发放奖励', 'success');
+                } else {
+                    log('contractInfo', '⚠️ 合约余额不足，无法发放奖励', 'warning');
+                }
+
+            } catch (error) {
+                log('contractInfo', `❌ 查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkRewardConfig() {
+            if (!smartContract) {
+                log('contractInfo', '❌ 请先检查连接', 'error');
+                return;
+            }
+
+            try {
+                log('contractInfo', '🔍 查询奖励配置...', 'info');
+                
+                const rewardConfig = await smartContract.contract.methods.getRewardConfig().call();
+                const rewardAmount = smartContract.web3.utils.fromWei(rewardConfig.rewardAmount, 'ether');
+                
+                log('contractInfo', `🎁 奖励金额: ${rewardAmount} S`, 'highlight');
+                log('contractInfo', `🔘 奖励状态: ${rewardConfig.enabled ? '✅ 启用' : '❌ 禁用'}`, 
+                    rewardConfig.enabled ? 'success' : 'error');
+
+                // Check REWARD_AMOUNT constant
+                const constantReward = await smartContract.contract.methods.REWARD_AMOUNT().call();
+                const constantRewardEther = smartContract.web3.utils.fromWei(constantReward, 'ether');
+                log('contractInfo', `📋 固定奖励金额: ${constantRewardEther} S`, 'info');
+
+            } catch (error) {
+                log('contractInfo', `❌ 查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkUserRewards() {
+            clearLog('userRewards');
+            
+            if (!smartContract || !userAccount) {
+                log('userRewards', '❌ 请先检查连接', 'error');
+                return;
+            }
+
+            try {
+                log('userRewards', '🔍 查询用户奖励记录...', 'info');
+                
+                const achievement = await smartContract.contract.methods.getUserAchievement(userAccount).call();
+                const totalRewards = smartContract.web3.utils.fromWei(achievement.totalRewards, 'ether');
+                
+                log('userRewards', `👤 用户: ${userAccount}`, 'info');
+                log('userRewards', `🏆 总姿势数: ${achievement.totalPoses}`, 'info');
+                log('userRewards', `⭐ 最佳分数: ${achievement.bestScore}`, 'info');
+                log('userRewards', `📊 等级: ${achievement.level}`, 'info');
+                log('userRewards', `💰 总奖励: ${totalRewards} S`, 'highlight');
+
+                if (parseFloat(totalRewards) > 0) {
+                    log('userRewards', '✅ 用户已获得奖励', 'success');
+                } else {
+                    log('userRewards', '⚠️ 用户尚未获得任何奖励', 'warning');
+                }
+
+                // Check record count
+                const recordCount = await smartContract.contract.methods.getUserRecordCount(userAccount).call();
+                log('userRewards', `📝 记录总数: ${recordCount}`, 'info');
+
+            } catch (error) {
+                log('userRewards', `❌ 查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkUserBalance() {
+            if (!smartContract || !userAccount) {
+                log('userRewards', '❌ 请先检查连接', 'error');
+                return;
+            }
+
+            try {
+                log('userRewards', '🔍 查询用户钱包余额...', 'info');
+                
+                const balance = await smartContract.web3.eth.getBalance(userAccount);
+                const balanceEther = smartContract.web3.utils.fromWei(balance, 'ether');
+                
+                log('userRewards', `💳 钱包余额: ${balanceEther} S`, 'highlight');
+
+            } catch (error) {
+                log('userRewards', `❌ 查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkContractStats() {
+            clearLog('contractStats');
+            
+            if (!smartContract) {
+                log('contractStats', '❌ 请先检查连接', 'error');
+                return;
+            }
+
+            try {
+                log('contractStats', '🔍 查询合约统计...', 'info');
+                
+                const stats = await smartContract.contract.methods.getContractStats().call();
+                const totalRewards = smartContract.web3.utils.fromWei(stats.totalRewards, 'ether');
+                const contractBalance = smartContract.web3.utils.fromWei(stats.contractBalance, 'ether');
+                
+                log('contractStats', `👥 总用户数: ${stats.totalUsers}`, 'info');
+                log('contractStats', `📝 总记录数: ${stats.totalRecordsCount}`, 'info');
+                log('contractStats', `👑 合约所有者: ${stats.contractOwner}`, 'info');
+                log('contractStats', `💰 合约余额: ${contractBalance} S`, 'highlight');
+                log('contractStats', `🎁 已发放奖励: ${totalRewards} S`, 'highlight');
+                log('contractStats', `🔘 奖励状态: ${stats.rewardsStatus ? '✅ 启用' : '❌ 禁用'}`, 
+                    stats.rewardsStatus ? 'success' : 'error');
+
+            } catch (error) {
+                log('contractStats', `❌ 查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkRecentTransactions() {
+            clearLog('recentTransactions');
+            log('recentTransactions', '🔍 查询最近交易记录...', 'info');
+            
+            if (!smartContract || !userAccount) {
+                log('recentTransactions', '❌ 请先检查连接', 'error');
+                return;
+            }
+
+            try {
+                const recordCount = await smartContract.contract.methods.getUserRecordCount(userAccount).call();
+                log('recentTransactions', `📊 用户总记录数: ${recordCount}`, 'info');
+
+                if (recordCount > 0) {
+                    // Show last few records
+                    const maxRecords = Math.min(5, recordCount);
+                    log('recentTransactions', `📋 显示最近 ${maxRecords} 条记录:`, 'info');
+
+                    for (let i = recordCount - maxRecords; i < recordCount; i++) {
+                        try {
+                            const record = await smartContract.contract.methods.getUserPoseRecord(userAccount, i).call();
+                            const timestamp = new Date(record.timestamp * 1000).toLocaleString();
+                            
+                            log('recentTransactions', `\n记录 #${i + 1}:`, 'info');
+                            log('recentTransactions', `  姿势: ${record.poseName}`, 'info');
+                            log('recentTransactions', `  分数: ${record.score}`, 'info');
+                            log('recentTransactions', `  时长: ${record.duration}ms`, 'info');
+                            log('recentTransactions', `  时间: ${timestamp}`, 'info');
+                            log('recentTransactions', `  已验证: ${record.verified ? '✅' : '❌'}`, record.verified ? 'success' : 'warning');
+                            log('recentTransactions', `  已奖励: ${record.rewarded ? '✅' : '❌'}`, record.rewarded ? 'success' : 'warning');
+                            
+                        } catch (recordError) {
+                            log('recentTransactions', `❌ 获取记录 #${i + 1} 失败: ${recordError.message}`, 'error');
+                        }
+                    }
+                } else {
+                    log('recentTransactions', '📭 暂无交易记录', 'warning');
+                }
+
+            } catch (error) {
+                log('recentTransactions', `❌ 查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testRewardSystem() {
+            clearLog('testResults');
+            const btn = document.getElementById('testBtn');
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+
+            try {
+                log('testResults', '🧪 开始测试奖励系统...', 'info');
+                
+                if (!smartContract) {
+                    throw new Error('请先检查连接');
+                }
+
+                // Test 1: Check if enhanced functions exist
+                log('testResults', '\n1️⃣ 检查增强功能...', 'info');
+                const hasEnhanced = await smartContract.checkEnhancedFunctions();
+                log('testResults', `增强功能: ${hasEnhanced ? '✅ 可用' : '❌ 不可用'}`, hasEnhanced ? 'success' : 'warning');
+
+                // Test 2: Check reward configuration
+                log('testResults', '\n2️⃣ 检查奖励配置...', 'info');
+                const rewardConfig = await smartContract.contract.methods.getRewardConfig().call();
+                const rewardAmount = smartContract.web3.utils.fromWei(rewardConfig.rewardAmount, 'ether');
+                log('testResults', `奖励金额: ${rewardAmount} S`, 'info');
+                log('testResults', `奖励启用: ${rewardConfig.enabled ? '✅' : '❌'}`, rewardConfig.enabled ? 'success' : 'error');
+
+                // Test 3: Check contract balance
+                log('testResults', '\n3️⃣ 检查合约余额...', 'info');
+                const balance = await smartContract.contract.methods.getContractBalance().call();
+                const balanceEther = smartContract.web3.utils.fromWei(balance, 'ether');
+                log('testResults', `合约余额: ${balanceEther} S`, 'info');
+
+                const hasEnoughBalance = parseFloat(balanceEther) >= parseFloat(rewardAmount);
+                log('testResults', `余额充足: ${hasEnoughBalance ? '✅' : '❌'}`, hasEnoughBalance ? 'success' : 'error');
+
+                // Test 4: Summary
+                log('testResults', '\n📋 测试总结:', 'info');
+                if (hasEnhanced && rewardConfig.enabled && hasEnoughBalance) {
+                    log('testResults', '✅ 奖励系统完全正常！', 'success');
+                    log('testResults', '💰 用户完成验证姿势后应该会自动获得 0.01 S 奖励', 'success');
+                } else {
+                    log('testResults', '⚠️ 奖励系统存在问题:', 'warning');
+                    if (!hasEnhanced) log('testResults', '  - 合约缺少增强功能', 'warning');
+                    if (!rewardConfig.enabled) log('testResults', '  - 奖励功能未启用', 'warning');
+                    if (!hasEnoughBalance) log('testResults', '  - 合约余额不足', 'warning');
+                }
+
+            } catch (error) {
+                log('testResults', `❌ 测试失败: ${error.message}`, 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '测试奖励系统';
+        }
+
+        // Auto-initialize on page load
+        window.addEventListener('load', () => {
+            setTimeout(checkConnection, 1000);
+        });
+    </script>
+</body>
+</html>
