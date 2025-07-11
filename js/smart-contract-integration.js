@@ -524,7 +524,10 @@ class SmartContractIntegration {
         }
 
         // Extract poseData at the beginning so it's available in catch blocks
-        const poseData = proof.poseData;
+        const poseData = {
+            ...proof.poseData,
+            proofId: proof.id // Add proof ID to poseData for success page
+        };
 
         // 确定姿态类型
         let poseType = 0; // YOGA
@@ -637,6 +640,10 @@ class SmartContractIntegration {
                 });
 
                 console.log('✅ 备用记录成功（无奖励）:', backupTransaction.transactionHash);
+
+                // 显示成功通知并跳转（即使没有奖励）
+                this.showRewardSuccessAndRedirect(backupTransaction.transactionHash, poseData);
+
                 return {
                     success: true,
                     transactionHash: backupTransaction.transactionHash,
@@ -1092,8 +1099,14 @@ class SmartContractIntegration {
                 notification.parentNode.removeChild(notification);
             }
 
-            // 跳转到成功页面，传递交易信息
-            const successUrl = `reward-confirmation.html?tx=${transactionHash}&pose=${encodeURIComponent(poseData.poseName)}&score=${poseData.score}`;
+            // 跳转到成功页面，传递交易信息和证明ID
+            let successUrl = `reward-confirmation.html?tx=${transactionHash}&pose=${encodeURIComponent(poseData.poseName)}&score=${poseData.score}`;
+
+            // 如果有证明ID，添加到URL中
+            if (poseData.proofId) {
+                successUrl += `&proofId=${encodeURIComponent(poseData.proofId)}`;
+            }
+
             window.location.href = successUrl;
         }, 3000);
     }

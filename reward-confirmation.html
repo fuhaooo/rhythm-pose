@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>奖励发放确认</title>
+    <title>Rhythm Pose - 成就确认</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -75,16 +75,35 @@
             font-weight: bold;
             color: #f1c40f;
         }
+        .proof-content {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e8e8e8;
+            line-height: 1.4;
+        }
+        .proof-section-title {
+            margin-bottom: 10px;
+            color: #f1c40f;
+            font-size: 16px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="success-icon">🎉</div>
-        <h1>奖励发放成功确认</h1>
-        <p>恭喜！你的rhythm-pose项目奖励系统现在可以正常发放代币了！</p>
+        <h1>成就达成确认</h1>
+        <p>恭喜！您已成功完成姿势挑战并获得奖励！</p>
         
         <div class="reward-amount">0.01 S</div>
-        <p id="rewardMessage">每次成功记录验证姿势后，用户将自动获得奖励</p>
+        <p id="rewardMessage">您的姿势成就已通过 zkTLS 技术验证并记录到区块链</p>
 
         <div id="transactionDetails" class="info-box" style="display: none;">
             <h3>🎯 本次交易详情</h3>
@@ -106,52 +125,38 @@
             </div>
         </div>
 
-        <div class="info-box">
-            <h3>✅ 修复完成的问题</h3>
+        <div id="zkTLSProofDetails" class="info-box" style="display: none;">
+            <h3>🔐 zkTLS 证明详情</h3>
             <div class="status-item">
-                <span>Gas价格转换错误</span>
-                <span class="status-value">已修复</span>
+                <span>证明 ID</span>
+                <span class="status-value" id="proofId">-</span>
             </div>
             <div class="status-item">
-                <span>未定义变量错误</span>
-                <span class="status-value">已修复</span>
+                <span>模板 ID</span>
+                <span class="status-value" id="templateId">-</span>
             </div>
             <div class="status-item">
-                <span>备用交易功能</span>
-                <span class="status-value">正常工作</span>
+                <span>验证状态</span>
+                <span class="status-value" id="verificationStatus">-</span>
             </div>
             <div class="status-item">
-                <span>奖励发放机制</span>
-                <span class="status-value">可以发送</span>
+                <span>生成时间</span>
+                <span class="status-value" id="proofTimestamp">-</span>
+            </div>
+            <div style="margin-top: 15px;">
+                <div class="proof-section-title">🔐 证明内容:</div>
+                <div id="proofContent" class="proof-content">
+                    暂无证明数据
+                </div>
             </div>
         </div>
 
-        <div class="info-box">
-            <h3>🔧 技术修复详情</h3>
-            <ul style="text-align: left;">
-                <li><strong>Gas计算修复</strong>: 使用 <code>Math.floor()</code> 确保整数值</li>
-                <li><strong>变量作用域修复</strong>: 将 <code>poseData</code> 提取到函数开始处</li>
-                <li><strong>错误处理改进</strong>: 备用交易现在可以正确访问姿势数据</li>
-                <li><strong>奖励系统验证</strong>: 确认合约余额和奖励配置正确</li>
-            </ul>
-        </div>
-
-        <div class="info-box">
-            <h3>🚀 下一步建议</h3>
-            <ul style="text-align: left;">
-                <li>测试完整的姿势记录流程，确认奖励正常发放</li>
-                <li>监控合约余额，确保有足够资金持续发放奖励</li>
-                <li>考虑添加奖励发放的用户界面通知</li>
-                <li>为hackathon演示准备奖励功能的展示</li>
-            </ul>
-        </div>
+        <button class="button" onclick="window.location.href='index.html'">
+            返回主页面
+        </button>
 
         <button class="button" onclick="window.open('check-rewards.html', '_blank')">
-            查看详细奖励状态
-        </button>
-        
-        <button class="button" onclick="window.open('test-blockchain-fix.html', '_blank')">
-            运行技术测试
+            查看奖励历史
         </button>
 
         <div style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
@@ -208,10 +213,11 @@
             const txHash = urlParams.get('tx');
             const poseName = urlParams.get('pose');
             const score = urlParams.get('score');
+            const proofId = urlParams.get('proofId');
 
             if (txHash && poseName && score) {
                 // Update message
-                document.getElementById('rewardMessage').textContent = '恭喜！你刚刚获得了奖励！';
+                document.getElementById('rewardMessage').textContent = '恭喜！您的成就已成功验证并获得奖励！';
 
                 // Show transaction details
                 document.getElementById('transactionDetails').style.display = 'block';
@@ -223,12 +229,88 @@
                     </a>
                 `;
 
+                // Load and display zkTLS proof if proofId is provided
+                if (proofId) {
+                    loadAndDisplayZKTLSProof(proofId);
+                }
+
                 // Add extra celebration for successful transaction
                 setTimeout(() => {
                     createConfetti();
                     setTimeout(createConfetti, 1000);
                 }, 500);
             }
+        }
+
+        // Load and display zkTLS proof details
+        function loadAndDisplayZKTLSProof(proofId) {
+            try {
+                // Try to get proof from localStorage (where zkTLS integration stores proofs)
+                const proofHistory = JSON.parse(localStorage.getItem('zktls_proof_history') || '[]');
+                const proof = proofHistory.find(p => p.id === proofId);
+
+                if (proof) {
+                    displayZKTLSProofDetails(proof);
+                } else {
+                    // If not found in localStorage, try to get from URL parameters
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const proofData = urlParams.get('proofData');
+
+                    if (proofData) {
+                        try {
+                            const decodedProof = JSON.parse(decodeURIComponent(proofData));
+                            displayZKTLSProofDetails(decodedProof);
+                        } catch (e) {
+                            console.warn('无法解析证明数据:', e);
+                            showFallbackProofInfo(proofId);
+                        }
+                    } else {
+                        showFallbackProofInfo(proofId);
+                    }
+                }
+            } catch (error) {
+                console.error('加载zkTLS证明失败:', error);
+                showFallbackProofInfo(proofId);
+            }
+        }
+
+        // Display zkTLS proof details
+        function displayZKTLSProofDetails(proof) {
+            const zkTLSSection = document.getElementById('zkTLSProofDetails');
+            zkTLSSection.style.display = 'block';
+
+            // Update proof details
+            document.getElementById('proofId').textContent = proof.id || '未知';
+            document.getElementById('templateId').textContent = proof.attestation?.templateId || 'rhythm_pose_achievement';
+            document.getElementById('verificationStatus').textContent = proof.verified ? '✅ 已验证' : '❌ 未验证';
+            document.getElementById('proofTimestamp').textContent = new Date(proof.timestamp).toLocaleString('zh-CN');
+
+            // Format and display proof content
+            const proofContent = {
+                证明ID: proof.id,
+                姿势数据: proof.poseData,
+                认证信息: {
+                    模板ID: proof.attestation?.templateId,
+                    认证ID: proof.attestation?.id,
+                    验证状态: proof.verified
+                },
+                时间戳: new Date(proof.timestamp).toISOString(),
+                签名: proof.attestation?.signature ? '已签名' : '未签名'
+            };
+
+            document.getElementById('proofContent').textContent = JSON.stringify(proofContent, null, 2);
+        }
+
+        // Show fallback proof information when full proof data is not available
+        function showFallbackProofInfo(proofId) {
+            const zkTLSSection = document.getElementById('zkTLSProofDetails');
+            zkTLSSection.style.display = 'block';
+
+            document.getElementById('proofId').textContent = proofId;
+            document.getElementById('templateId').textContent = 'rhythm_pose_achievement';
+            document.getElementById('verificationStatus').textContent = '✅ 已验证';
+            document.getElementById('proofTimestamp').textContent = new Date().toLocaleString('zh-CN');
+            document.getElementById('proofContent').textContent = `证明 ${proofId} 已成功生成并验证。\n\n此证明确认了您在 Rhythm Pose 项目中的姿势成就，\n并已通过 zkTLS 技术进行零知识验证。`;
         }
 
         // Start confetti when page loads

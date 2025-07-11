@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试成功页面</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            text-align: center;
+        }
+        .button {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 成功页面测试</h1>
+        <p>测试不同场景下的成功页面显示效果</p>
+
+        <div class="test-section">
+            <h3>📱 测试场景</h3>
+            <p>点击下面的按钮测试不同的成功页面显示效果：</p>
+            
+            <a href="#" class="button" onclick="testBasicSuccess()">基础成功页面</a>
+            <a href="#" class="button" onclick="testWithProof()">包含 zkTLS 证明</a>
+            <a href="#" class="button" onclick="testWithMockProofData()">模拟完整证明数据</a>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 测试说明</h3>
+            <ul>
+                <li><strong>基础成功页面</strong>: 只显示交易信息，不包含 zkTLS 证明</li>
+                <li><strong>包含 zkTLS 证明</strong>: 显示证明 ID，但使用回退信息</li>
+                <li><strong>模拟完整证明数据</strong>: 在 localStorage 中创建模拟证明数据</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function testBasicSuccess() {
+            const mockTxHash = '0x' + Math.random().toString(16).substr(2, 40);
+            const url = `reward-confirmation.html?tx=${mockTxHash}&pose=${encodeURIComponent('tree-pose')}&score=92`;
+            window.location.href = url;
+        }
+
+        function testWithProof() {
+            const mockTxHash = '0x' + Math.random().toString(16).substr(2, 40);
+            const mockProofId = 'proof_' + Date.now();
+            const url = `reward-confirmation.html?tx=${mockTxHash}&pose=${encodeURIComponent('warrior-pose')}&score=88&proofId=${mockProofId}`;
+            window.location.href = url;
+        }
+
+        function testWithMockProofData() {
+            // 创建模拟的 zkTLS 证明数据
+            const mockProofId = 'proof_' + Date.now();
+            const mockProof = {
+                id: mockProofId,
+                poseData: {
+                    poseName: 'diamond-hands',
+                    score: 95,
+                    duration: 8000,
+                    accuracy: 92,
+                    timestamp: Date.now()
+                },
+                attestation: {
+                    id: 'att_' + Date.now(),
+                    templateId: '2e3160ae-8b1e-45e3-8c59-426366278b9d',
+                    signature: '0x' + Math.random().toString(16).substr(2, 128)
+                },
+                timestamp: Date.now(),
+                verified: true
+            };
+
+            // 保存到 localStorage
+            const existingProofs = JSON.parse(localStorage.getItem('zktls_proof_history') || '[]');
+            existingProofs.push(mockProof);
+            localStorage.setItem('zktls_proof_history', JSON.stringify(existingProofs));
+
+            // 跳转到成功页面
+            const mockTxHash = '0x' + Math.random().toString(16).substr(2, 40);
+            const url = `reward-confirmation.html?tx=${mockTxHash}&pose=${encodeURIComponent('diamond-hands')}&score=95&proofId=${mockProofId}`;
+            window.location.href = url;
+        }
+    </script>
+</body>
+</html>

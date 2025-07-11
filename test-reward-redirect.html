@@ -162,7 +162,8 @@
 
             // 3秒后跳转
             setTimeout(() => {
-                const successUrl = `reward-confirmation.html?tx=${mockTransactionHash}&pose=${encodeURIComponent(mockPoseData.poseName)}&score=${mockPoseData.score}`;
+                const mockProofId = 'proof_' + Date.now();
+                const successUrl = `reward-confirmation.html?tx=${mockTransactionHash}&pose=${encodeURIComponent(mockPoseData.poseName)}&score=${mockPoseData.score}&proofId=${mockProofId}`;
                 window.location.href = successUrl;
             }, 3000);
         }
@@ -193,7 +194,8 @@
 
         function directRedirect() {
             const mockTransactionHash = '0x1234567890abcdef1234567890abcdef12345678';
-            const successUrl = `reward-confirmation.html?tx=${mockTransactionHash}&pose=${encodeURIComponent('warrior-pose')}&score=95`;
+            const mockProofId = 'proof_' + Date.now();
+            const successUrl = `reward-confirmation.html?tx=${mockTransactionHash}&pose=${encodeURIComponent('warrior-pose')}&score=95&proofId=${mockProofId}`;
             window.location.href = successUrl;
         }
 
