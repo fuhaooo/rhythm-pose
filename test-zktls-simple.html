@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple zkTLS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .log {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Simple zkTLS Test</h1>
+        <p>测试 zkTLS 浏览器包装器是否正常工作</p>
+
+        <div id="status" class="status info">准备测试...</div>
+
+        <div>
+            <button id="test-load" class="btn">1. 测试 SDK 加载</button>
+            <button id="test-init" class="btn" disabled>2. 测试初始化</button>
+            <button id="test-proof" class="btn" disabled>3. 测试证明生成</button>
+            <button id="clear-log" class="btn">清除日志</button>
+        </div>
+
+        <div id="log" class="log">等待测试...</div>
+    </div>
+
+    <!-- 加载依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="js/zktls-browser-wrapper.js"></script>
+    <script src="js/zktls-config.js"></script>
+
+    <script>
+        let zkTLS = null;
+        
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        // 测试 1: SDK 加载
+        document.getElementById('test-load').addEventListener('click', async () => {
+            try {
+                log('开始测试 SDK 加载...');
+                
+                // 检查依赖
+                log(`Ethers.js: ${typeof ethers !== 'undefined' ? '✅ 已加载' : '❌ 未加载'}`);
+                log(`PrimusZKTLS: ${typeof PrimusZKTLS !== 'undefined' ? '✅ 已加载' : '❌ 未加载'}`);
+                log(`ZKTLSConfig: ${typeof ZKTLSConfig !== 'undefined' ? '✅ 已加载' : '❌ 未加载'}`);
+                log(`包装器版本: ${window.ZKTLS_BROWSER_WRAPPER_VERSION || '未知'}`);
+
+                if (typeof PrimusZKTLS === 'undefined') {
+                    throw new Error('PrimusZKTLS 未定义');
+                }
+
+                // 创建实例测试
+                zkTLS = new PrimusZKTLS();
+                log('✅ PrimusZKTLS 实例创建成功');
+                
+                updateStatus('SDK 加载测试通过', 'success');
+                document.getElementById('test-init').disabled = false;
+                
+            } catch (error) {
+                log(`❌ SDK 加载测试失败: ${error.message}`);
+                updateStatus(`SDK 加载失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 测试 2: 初始化
+        document.getElementById('test-init').addEventListener('click', async () => {
+            try {
+                log('开始测试初始化...');
+                
+                if (!zkTLS) {
+                    throw new Error('zkTLS 实例不存在');
+                }
+
+                const config = ZKTLSConfig.app;
+                log(`使用配置: appId=${config.appId.substring(0, 10)}...`);
+                
+                const result = await zkTLS.init(
+                    config.appId,
+                    config.appSecret,
+                    {
+                        platform: "pc",
+                        env: config.environment
+                    }
+                );
+
+                log(`初始化结果: ${JSON.stringify(result, null, 2)}`);
+
+                if (result && result.success) {
+                    log('✅ zkTLS 初始化成功');
+                    updateStatus('初始化测试通过', 'success');
+                    document.getElementById('test-proof').disabled = false;
+                } else {
+                    throw new Error(`初始化失败: ${result?.message || '未知错误'}`);
+                }
+                
+            } catch (error) {
+                log(`❌ 初始化测试失败: ${error.message}`);
+                updateStatus(`初始化失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 测试 3: 证明生成
+        document.getElementById('test-proof').addEventListener('click', async () => {
+            try {
+                log('开始测试证明生成...');
+                
+                if (!zkTLS) {
+                    throw new Error('zkTLS 实例不存在');
+                }
+
+                // 模拟用户地址
+                const userAddress = "0x742d35Cc6634C0532925a3b8D4C9db96590c6C87";
+                const templateId = "rhythm_pose_achievement";
+
+                log(`生成请求参数: templateId=${templateId}, userAddress=${userAddress}`);
+                
+                // 生成请求
+                const request = zkTLS.generateRequestParams(templateId, userAddress);
+                log('✅ 请求参数生成成功');
+
+                // 设置模式
+                request.setAttMode({ algorithmType: "proxytls" });
+                log('✅ 设置认证模式成功');
+
+                // 设置条件
+                const conditions = [
+                    [
+                        { field: "pose_name", op: "=", value: "tree-pose" },
+                        { field: "score", op: ">=", value: "85" }
+                    ]
+                ];
+                request.setAttConditions(conditions);
+                log('✅ 设置认证条件成功');
+
+                // 转换为字符串
+                const requestStr = request.toJsonString();
+                log(`请求字符串长度: ${requestStr.length} 字符`);
+
+                // 签名
+                log('开始签名...');
+                const signedRequestStr = await zkTLS.sign(requestStr);
+                log('✅ 签名成功');
+
+                // 生成证明
+                log('开始生成证明...');
+                const attestation = await zkTLS.startAttestation(signedRequestStr);
+                log('✅ 证明生成成功');
+                log(`证明ID: ${attestation.id}`);
+
+                // 验证证明
+                log('开始验证证明...');
+                const isValid = await zkTLS.verifyAttestation(attestation);
+                log(`验证结果: ${isValid ? '✅ 有效' : '❌ 无效'}`);
+
+                if (isValid) {
+                    updateStatus('所有测试通过！', 'success');
+                    log('🎉 所有 zkTLS 测试都通过了！');
+                } else {
+                    throw new Error('证明验证失败');
+                }
+                
+            } catch (error) {
+                log(`❌ 证明生成测试失败: ${error.message}`);
+                updateStatus(`证明生成失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 清除日志
+        document.getElementById('clear-log').addEventListener('click', () => {
+            document.getElementById('log').textContent = '';
+        });
+
+        // 页面加载完成后的初始检查
+        document.addEventListener('DOMContentLoaded', () => {
+            log('页面加载完成，开始环境检查...');
+            log(`浏览器: ${navigator.userAgent}`);
+            log(`当前时间: ${new Date().toISOString()}`);
+            
+            // 检查全局对象
+            const globals = ['ethers', 'PrimusZKTLS', 'ZKTLSConfig', 'ZKTLS_BROWSER_WRAPPER_VERSION'];
+            globals.forEach(name => {
+                log(`${name}: ${typeof window[name] !== 'undefined' ? '✅' : '❌'}`);
+            });
+            
+            updateStatus('环境检查完成，点击按钮开始测试', 'info');
+        });
+    </script>
+</body>
+</html>

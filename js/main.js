@@ -15,6 +15,11 @@ class RhythmPoseApp {
         // 视觉反馈系统
         this.visualFeedback = new VisualFeedbackSystem();
 
+        // zkTLS 集成
+        this.zkTLSIntegration = null;
+        this.zkTLSScoringIntegration = null;
+        this.zkTLSDebugMonitor = null;
+
         this.isInitialized = false;
         this.isDetecting = false;
         this.currentPoseKey = 'yoga-auto'; // 默认使用瑜伽自动识别
@@ -35,6 +40,7 @@ class RhythmPoseApp {
         this.setupEventListeners();
         this.setupCallbacks();
         this.initializeCustomActions();
+        this.initializeZKTLS();
         this.updateUI();
         await this.checkCameraSupport();
 
@@ -208,7 +214,8 @@ class RhythmPoseApp {
             this.openCustomActionManager();
         });
 
-
+        // zkTLS 相关按钮事件
+        this.setupZKTLSEventListeners();
 
         // 页面卸载时清理资源
         window.addEventListener('beforeunload', () => {
@@ -500,6 +507,11 @@ class RhythmPoseApp {
                 // 设置当前动作
                 this.scoringSystem.setCurrentPose(this.currentPoseKey);
                 this.elements.poseFeedback.textContent = '检测已开始，请按照指导完成动作';
+
+                // 启动zkTLS调试监控
+                if (this.zkTLSDebugMonitor) {
+                    this.zkTLSDebugMonitor.startMonitoring();
+                }
             } else {
                 throw new Error('无法启动检测');
             }
@@ -520,6 +532,11 @@ class RhythmPoseApp {
         // 停止MediaPipe手部检测
         this.mediaPipeHandDetector.stopDetection();
         this.isDetecting = false;
+
+        // 停止zkTLS调试监控
+        if (this.zkTLSDebugMonitor) {
+            this.zkTLSDebugMonitor.stopMonitoring();
+        }
 
         this.updateStatus('detection', '已停止', 'ready');
         this.elements.startBtn.disabled = false;
@@ -1387,6 +1404,289 @@ class RhythmPoseApp {
                 this.elements.poseFeedback.textContent = `自定义动作 "${action.name}" 已删除`;
             } else {
                 alert('删除失败: ' + result.error);
+            }
+        }
+    }
+
+    // ===== zkTLS 相关方法 =====
+
+    // 初始化zkTLS
+    initializeZKTLS() {
+        try {
+            // 初始化zkTLS集成
+            this.zkTLSIntegration = new ZKTLSIntegration();
+
+            // 初始化zkTLS评分集成
+            this.zkTLSScoringIntegration = new ZKTLSScoringIntegration(
+                this.scoringSystem,
+                this.zkTLSIntegration
+            );
+
+            // 初始化调试监控器
+            this.zkTLSDebugMonitor = new ZKTLSDebugMonitor(
+                this.scoringSystem,
+                this.zkTLSScoringIntegration
+            );
+
+            console.log('✅ zkTLS模块初始化完成');
+        } catch (error) {
+            console.error('❌ zkTLS模块初始化失败:', error);
+        }
+    }
+
+    // 设置zkTLS事件监听器
+    setupZKTLSEventListeners() {
+        // 连接钱包按钮
+        const connectWalletBtn = document.getElementById('connect-wallet-btn');
+        if (connectWalletBtn) {
+            connectWalletBtn.addEventListener('click', () => {
+                this.connectWallet();
+            });
+        }
+
+        // 初始化zkTLS按钮
+        const initZKTLSBtn = document.getElementById('init-zktls-btn');
+        if (initZKTLSBtn) {
+            initZKTLSBtn.addEventListener('click', () => {
+                this.initializeZKTLSService();
+            });
+        }
+
+        // 生成证明按钮
+        const generateProofBtn = document.getElementById('generate-proof-btn');
+        if (generateProofBtn) {
+            generateProofBtn.addEventListener('click', () => {
+                this.generateProof();
+            });
+        }
+
+        // 导出证明按钮
+        const exportProofsBtn = document.getElementById('export-proofs-btn');
+        if (exportProofsBtn) {
+            exportProofsBtn.addEventListener('click', () => {
+                this.exportProofs();
+            });
+        }
+
+        // 清除证明历史按钮
+        const clearProofsBtn = document.getElementById('clear-proofs-btn');
+        if (clearProofsBtn) {
+            clearProofsBtn.addEventListener('click', () => {
+                this.clearProofHistory();
+            });
+        }
+    }
+
+    // 连接钱包
+    async connectWallet() {
+        try {
+            if (typeof window.ethereum !== 'undefined') {
+                // 请求连接MetaMask
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                if (accounts.length > 0) {
+                    const userAddress = accounts[0];
+                    this.zkTLSIntegration.setUserAddress(userAddress);
+
+                    // 更新UI
+                    this.updateZKTLSStatus();
+
+                    console.log('✅ 钱包连接成功:', userAddress);
+                } else {
+                    throw new Error('未获取到账户地址');
+                }
+            } else {
+                throw new Error('未检测到MetaMask钱包');
+            }
+        } catch (error) {
+            console.error('❌ 钱包连接失败:', error);
+            alert('钱包连接失败: ' + error.message);
+        }
+    }
+
+    // 初始化zkTLS服务
+    async initializeZKTLSService() {
+        try {
+            if (!this.zkTLSIntegration) {
+                throw new Error('zkTLS集成未初始化');
+            }
+
+            await this.zkTLSIntegration.initialize();
+
+            // 更新UI
+            this.updateZKTLSStatus();
+
+            console.log('✅ zkTLS服务初始化成功');
+        } catch (error) {
+            console.error('❌ zkTLS服务初始化失败:', error);
+            alert('zkTLS服务初始化失败: ' + error.message);
+        }
+    }
+
+    // 生成证明
+    async generateProof() {
+        try {
+            if (!this.zkTLSScoringIntegration) {
+                throw new Error('zkTLS评分集成未初始化');
+            }
+
+            const scoreData = this.scoringSystem.getScoreData();
+            const proof = await this.zkTLSScoringIntegration.generatePoseProof(
+                this.currentPoseKey,
+                scoreData
+            );
+
+            // 更新UI
+            this.updateProofDisplay();
+            this.updateProofHistory();
+
+            console.log('✅ 证明生成成功:', proof.id);
+            alert('证明生成成功！');
+        } catch (error) {
+            console.error('❌ 证明生成失败:', error);
+            alert('证明生成失败: ' + error.message);
+        }
+    }
+
+    // 导出证明
+    exportProofs() {
+        try {
+            if (!this.zkTLSIntegration) {
+                throw new Error('zkTLS集成未初始化');
+            }
+
+            const proofData = this.zkTLSIntegration.exportProofData();
+            const dataStr = JSON.stringify(proofData, null, 2);
+
+            // 创建下载链接
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rhythm-pose-proofs-${Date.now()}.json`;
+            a.click();
+
+            URL.revokeObjectURL(url);
+
+            console.log('✅ 证明数据导出成功');
+        } catch (error) {
+            console.error('❌ 证明导出失败:', error);
+            alert('证明导出失败: ' + error.message);
+        }
+    }
+
+    // 清除证明历史
+    clearProofHistory() {
+        try {
+            if (confirm('确定要清除所有证明历史吗？此操作不可撤销。')) {
+                this.zkTLSIntegration.clearProofHistory();
+                this.updateProofDisplay();
+                this.updateProofHistory();
+                console.log('✅ 证明历史已清除');
+            }
+        } catch (error) {
+            console.error('❌ 清除证明历史失败:', error);
+        }
+    }
+
+    // 更新zkTLS状态显示
+    updateZKTLSStatus() {
+        const zkTLSStatus = document.getElementById('zktls-status');
+        const userAddress = document.getElementById('user-address');
+        const initZKTLSBtn = document.getElementById('init-zktls-btn');
+        const generateProofBtn = document.getElementById('generate-proof-btn');
+
+        if (this.zkTLSIntegration) {
+            const status = this.zkTLSIntegration.getStatus();
+
+            // 更新状态显示
+            if (zkTLSStatus) {
+                zkTLSStatus.textContent = status.isInitialized ? '已就绪' : '未初始化';
+                zkTLSStatus.className = status.isInitialized ? 'status ready' : 'status';
+            }
+
+            if (userAddress) {
+                userAddress.textContent = status.userAddress ?
+                    `${status.userAddress.slice(0, 6)}...${status.userAddress.slice(-4)}` : '未连接';
+            }
+
+            // 更新按钮状态
+            if (initZKTLSBtn) {
+                initZKTLSBtn.disabled = !status.userAddress || status.isInitialized;
+            }
+
+            if (generateProofBtn) {
+                generateProofBtn.disabled = !status.isInitialized;
+            }
+        }
+    }
+
+    // 更新证明显示
+    updateProofDisplay() {
+        const latestProofElement = document.getElementById('latest-proof');
+
+        if (this.zkTLSIntegration && latestProofElement) {
+            const latestProof = this.zkTLSIntegration.getLatestProof();
+
+            if (latestProof) {
+                const formattedProof = this.zkTLSIntegration.formatProofForDisplay(latestProof);
+                latestProofElement.innerHTML = `
+                    <div class="proof-item">
+                        <div class="proof-header">
+                            <span class="proof-title">${formattedProof.poseName}</span>
+                            <span class="proof-status">${formattedProof.verified}</span>
+                        </div>
+                        <div class="proof-details">
+                            得分: ${formattedProof.score} | 时长: ${formattedProof.duration}s<br>
+                            时间: ${formattedProof.timestamp}
+                        </div>
+                    </div>
+                `;
+            } else {
+                latestProofElement.innerHTML = '<p class="no-proof">暂无证明</p>';
+            }
+        }
+    }
+
+    // 更新证明历史
+    updateProofHistory() {
+        const proofHistoryList = document.getElementById('proof-history-list');
+        const totalProofs = document.getElementById('total-proofs');
+        const verifiedProofs = document.getElementById('verified-proofs');
+
+        if (this.zkTLSScoringIntegration && proofHistoryList) {
+            const stats = this.zkTLSScoringIntegration.getProofStats();
+
+            // 更新统计
+            if (totalProofs) totalProofs.textContent = stats.totalProofs;
+            if (verifiedProofs) verifiedProofs.textContent = stats.verifiedProofs;
+
+            // 更新历史列表
+            const proofHistory = this.zkTLSIntegration.getProofHistory();
+
+            if (proofHistory.length > 0) {
+                proofHistoryList.innerHTML = proofHistory
+                    .slice(-5) // 只显示最近5个
+                    .reverse()
+                    .map(proof => {
+                        const formatted = this.zkTLSIntegration.formatProofForDisplay(proof);
+                        return `
+                            <div class="proof-item">
+                                <div class="proof-header">
+                                    <span class="proof-title">${formatted.poseName}</span>
+                                    <span class="proof-status">${formatted.verified}</span>
+                                </div>
+                                <div class="proof-details">
+                                    得分: ${formatted.score} | ${formatted.timestamp}
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join('');
+            } else {
+                proofHistoryList.innerHTML = '<span class="no-proofs">暂无证明记录</span>';
             }
         }
     }

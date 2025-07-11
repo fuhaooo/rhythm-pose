@@ -19,5 +19,8 @@
   "devDependencies": {
     "http-server": "^14.1.1",
     "live-server": "^1.2.2"
+  },
+  "dependencies": {
+    "@primuslabs/zktls-js-sdk": "^0.3.3"
   }
 }

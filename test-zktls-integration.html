@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zkTLS Integration Test - Rhythm Pose</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #8A2BE2;
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #8A2BE2;
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #8A2BE2;
+        }
+        
+        .btn {
+            background: #8A2BE2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #7B68EE;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .log-area {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .proof-display {
+            background: #f1f3f4;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .proof-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .proof-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .proof-title {
+            font-weight: bold;
+            color: #8A2BE2;
+        }
+        
+        .proof-status {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 zkTLS Integration Test</h1>
+            <p>测试 Rhythm Pose 的 zkTLS 集成功能</p>
+        </div>
+
+        <div class="grid">
+            <!-- 左侧：测试控制 -->
+            <div>
+                <!-- 初始化测试 -->
+                <div class="test-section">
+                    <h3>1. 初始化测试</h3>
+                    <button id="test-init" class="btn">初始化 zkTLS</button>
+                    <button id="test-wallet" class="btn">连接钱包</button>
+                    <div id="init-status" class="status info">等待初始化...</div>
+                </div>
+
+                <!-- 配置测试 -->
+                <div class="test-section">
+                    <h3>2. 配置测试</h3>
+                    <div class="form-group">
+                        <label>用户地址:</label>
+                        <input type="text" id="user-address" placeholder="0x..." readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>模板ID:</label>
+                        <input type="text" id="template-id" value="rhythm_pose_achievement">
+                    </div>
+                    <button id="test-config" class="btn">验证配置</button>
+                    <div id="config-status" class="status info">等待配置验证...</div>
+                </div>
+
+                <!-- 证明生成测试 -->
+                <div class="test-section">
+                    <h3>3. 证明生成测试</h3>
+                    <div class="form-group">
+                        <label>姿态名称:</label>
+                        <select id="pose-name">
+                            <option value="tree-pose">树式</option>
+                            <option value="warrior-pose">战士式</option>
+                            <option value="diamond-hands">Diamond Hands</option>
+                            <option value="thumbs-up">点赞</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>得分 (0-100):</label>
+                        <input type="number" id="test-score" value="85" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>持续时间 (秒):</label>
+                        <input type="number" id="test-duration" value="5" min="1" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>准确度 (0-100):</label>
+                        <input type="number" id="test-accuracy" value="90" min="0" max="100">
+                    </div>
+                    <button id="test-generate" class="btn" disabled>生成证明</button>
+                    <div id="generate-status" class="status info">等待生成证明...</div>
+                </div>
+
+                <!-- 验证测试 -->
+                <div class="test-section">
+                    <h3>4. 验证测试</h3>
+                    <button id="test-verify" class="btn" disabled>验证最新证明</button>
+                    <button id="test-export" class="btn" disabled>导出证明数据</button>
+                    <div id="verify-status" class="status info">等待验证...</div>
+                </div>
+            </div>
+
+            <!-- 右侧：结果显示 -->
+            <div>
+                <!-- 状态显示 -->
+                <div class="test-section">
+                    <h3>系统状态</h3>
+                    <div id="system-status">
+                        <p><strong>zkTLS状态:</strong> <span id="zktls-status">未初始化</span></p>
+                        <p><strong>钱包状态:</strong> <span id="wallet-status">未连接</span></p>
+                        <p><strong>证明数量:</strong> <span id="proof-count">0</span></p>
+                        <p><strong>最后操作:</strong> <span id="last-operation">无</span></p>
+                    </div>
+                </div>
+
+                <!-- 证明显示 -->
+                <div class="test-section">
+                    <h3>证明历史</h3>
+                    <div id="proof-display" class="proof-display">
+                        <p>暂无证明</p>
+                    </div>
+                </div>
+
+                <!-- 日志显示 -->
+                <div class="test-section">
+                    <h3>操作日志</h3>
+                    <div id="log-area" class="log-area">等待操作...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入必要的脚本 -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="js/zktls-browser-wrapper.js"></script>
+    <script src="js/zktls-config.js"></script>
+    <script src="js/zktls-integration.js"></script>
+    <script src="js/zktls-scoring-integration.js"></script>
+
+    <script>
+        // 测试应用类
+        class ZKTLSTestApp {
+            constructor() {
+                this.zkTLSIntegration = null;
+                this.zkTLSScoringIntegration = null;
+                this.mockScoringSystem = {
+                    achievements: [],
+                    newAchievements: [],
+                    getScoreData: () => ({
+                        currentScore: parseInt(document.getElementById('test-score').value),
+                        duration: parseInt(document.getElementById('test-duration').value),
+                        accuracy: parseInt(document.getElementById('test-accuracy').value),
+                        stability: 85,
+                        level: 5,
+                        combo: 3,
+                        totalScore: 1250
+                    })
+                };
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.log('测试应用初始化完成');
+            }
+
+            setupEventListeners() {
+                document.getElementById('test-init').addEventListener('click', () => this.testInitialization());
+                document.getElementById('test-wallet').addEventListener('click', () => this.testWalletConnection());
+                document.getElementById('test-config').addEventListener('click', () => this.testConfiguration());
+                document.getElementById('test-generate').addEventListener('click', () => this.testProofGeneration());
+                document.getElementById('test-verify').addEventListener('click', () => this.testProofVerification());
+                document.getElementById('test-export').addEventListener('click', () => this.testExportProofs());
+            }
+
+            async testInitialization() {
+                try {
+                    this.log('开始初始化 zkTLS...');
+                    this.updateStatus('init-status', '正在初始化...', 'info');
+
+                    this.zkTLSIntegration = new ZKTLSIntegration();
+                    await this.zkTLSIntegration.initialize();
+
+                    this.zkTLSScoringIntegration = new ZKTLSScoringIntegration(
+                        this.mockScoringSystem,
+                        this.zkTLSIntegration
+                    );
+
+                    this.updateStatus('init-status', 'zkTLS 初始化成功', 'success');
+                    this.updateSystemStatus();
+                    this.log('✅ zkTLS 初始化成功');
+
+                    document.getElementById('test-generate').disabled = false;
+                } catch (error) {
+                    this.updateStatus('init-status', `初始化失败: ${error.message}`, 'error');
+                    this.log(`❌ 初始化失败: ${error.message}`);
+                }
+            }
+
+            async testWalletConnection() {
+                try {
+                    this.log('开始连接钱包...');
+                    
+                    if (typeof window.ethereum !== 'undefined') {
+                        const accounts = await window.ethereum.request({ 
+                            method: 'eth_requestAccounts' 
+                        });
+                        
+                        if (accounts.length > 0) {
+                            const userAddress = accounts[0];
+                            document.getElementById('user-address').value = userAddress;
+                            
+                            if (this.zkTLSIntegration) {
+                                this.zkTLSIntegration.setUserAddress(userAddress);
+                            }
+                            
+                            this.updateSystemStatus();
+                            this.log(`✅ 钱包连接成功: ${userAddress}`);
+                        }
+                    } else {
+                        throw new Error('未检测到 MetaMask');
+                    }
+                } catch (error) {
+                    this.log(`❌ 钱包连接失败: ${error.message}`);
+                }
+            }
+
+            testConfiguration() {
+                try {
+                    this.log('验证配置...');
+                    
+                    const validation = ZKTLSConfig.validate();
+                    if (validation.isValid) {
+                        this.updateStatus('config-status', '配置验证成功', 'success');
+                        this.log('✅ 配置验证成功');
+                    } else {
+                        this.updateStatus('config-status', `配置错误: ${validation.errors.join(', ')}`, 'error');
+                        this.log(`❌ 配置错误: ${validation.errors.join(', ')}`);
+                    }
+                } catch (error) {
+                    this.updateStatus('config-status', `配置验证失败: ${error.message}`, 'error');
+                    this.log(`❌ 配置验证失败: ${error.message}`);
+                }
+            }
+
+            async testProofGeneration() {
+                try {
+                    this.log('开始生成证明...');
+                    this.updateStatus('generate-status', '正在生成证明...', 'info');
+
+                    const poseName = document.getElementById('pose-name').value;
+                    const scoreData = this.mockScoringSystem.getScoreData();
+
+                    const proof = await this.zkTLSScoringIntegration.generatePoseProof(poseName, scoreData);
+
+                    this.updateStatus('generate-status', '证明生成成功', 'success');
+                    this.updateProofDisplay();
+                    this.updateSystemStatus();
+                    this.log(`✅ 证明生成成功: ${proof.id}`);
+
+                    document.getElementById('test-verify').disabled = false;
+                    document.getElementById('test-export').disabled = false;
+                } catch (error) {
+                    this.updateStatus('generate-status', `证明生成失败: ${error.message}`, 'error');
+                    this.log(`❌ 证明生成失败: ${error.message}`);
+                }
+            }
+
+            async testProofVerification() {
+                try {
+                    this.log('开始验证证明...');
+                    
+                    const latestProof = this.zkTLSIntegration.getLatestProof();
+                    if (!latestProof) {
+                        throw new Error('没有可验证的证明');
+                    }
+
+                    const isValid = await this.zkTLSIntegration.verifyProof(latestProof.attestation);
+                    
+                    if (isValid) {
+                        this.updateStatus('verify-status', '证明验证成功', 'success');
+                        this.log(`✅ 证明验证成功: ${latestProof.id}`);
+                    } else {
+                        this.updateStatus('verify-status', '证明验证失败', 'error');
+                        this.log(`❌ 证明验证失败: ${latestProof.id}`);
+                    }
+                } catch (error) {
+                    this.updateStatus('verify-status', `验证过程出错: ${error.message}`, 'error');
+                    this.log(`❌ 验证过程出错: ${error.message}`);
+                }
+            }
+
+            testExportProofs() {
+                try {
+                    this.log('导出证明数据...');
+                    
+                    const proofData = this.zkTLSIntegration.exportProofData();
+                    const dataStr = JSON.stringify(proofData, null, 2);
+                    
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `zktls-test-proofs-${Date.now()}.json`;
+                    a.click();
+                    
+                    URL.revokeObjectURL(url);
+                    this.log('✅ 证明数据导出成功');
+                } catch (error) {
+                    this.log(`❌ 导出失败: ${error.message}`);
+                }
+            }
+
+            updateStatus(elementId, message, type) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = message;
+                    element.className = `status ${type}`;
+                }
+            }
+
+            updateSystemStatus() {
+                if (this.zkTLSIntegration) {
+                    const status = this.zkTLSIntegration.getStatus();
+                    document.getElementById('zktls-status').textContent = status.isInitialized ? '已就绪' : '未初始化';
+                    document.getElementById('wallet-status').textContent = status.userAddress ? '已连接' : '未连接';
+                    document.getElementById('proof-count').textContent = status.proofCount;
+                }
+                document.getElementById('last-operation').textContent = new Date().toLocaleTimeString();
+            }
+
+            updateProofDisplay() {
+                if (!this.zkTLSIntegration) return;
+
+                const proofHistory = this.zkTLSIntegration.getProofHistory();
+                const displayElement = document.getElementById('proof-display');
+
+                if (proofHistory.length > 0) {
+                    displayElement.innerHTML = proofHistory
+                        .slice(-3)
+                        .reverse()
+                        .map(proof => {
+                            const formatted = this.zkTLSIntegration.formatProofForDisplay(proof);
+                            return `
+                                <div class="proof-item">
+                                    <div class="proof-header">
+                                        <span class="proof-title">${formatted.poseName}</span>
+                                        <span class="proof-status">${formatted.verified}</span>
+                                    </div>
+                                    <div>得分: ${formatted.score} | 时长: ${formatted.duration}s</div>
+                                    <div>时间: ${formatted.timestamp}</div>
+                                </div>
+                            `;
+                        })
+                        .join('');
+                } else {
+                    displayElement.innerHTML = '<p>暂无证明</p>';
+                }
+            }
+
+            log(message) {
+                const logArea = document.getElementById('log-area');
+                const timestamp = new Date().toLocaleTimeString();
+                logArea.textContent += `[${timestamp}] ${message}\n`;
+                logArea.scrollTop = logArea.scrollHeight;
+                console.log(message);
+            }
+        }
+
+        // 页面加载完成后初始化测试应用
+        document.addEventListener('DOMContentLoaded', () => {
+            window.testApp = new ZKTLSTestApp();
+        });
+    </script>
+</body>
+</html>

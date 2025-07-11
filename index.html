@@ -16,6 +16,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1640029074/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1620248257/drawing_utils.js"></script>
+    <!-- Dependencies for zkTLS -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <!-- zkTLS Browser Wrapper -->
+    <script src="js/zktls-browser-wrapper.js"></script>
 </head>
 <body>
     <div class="container">
@@ -82,6 +86,34 @@
                     </div>
                     <div id="custom-actions-list" class="custom-actions-list">
                         <p class="no-custom-actions">暂无自定义动作</p>
+                    </div>
+                </div>
+
+                <!-- zkTLS 证明系统 -->
+                <div class="zktls-section">
+                    <h4>🔐 zkTLS 证明系统</h4>
+                    <div class="zktls-status">
+                        <div class="status-item">
+                            <span class="label">zkTLS状态:</span>
+                            <span id="zktls-status" class="status">未初始化</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">用户地址:</span>
+                            <span id="user-address" class="status">未连接</span>
+                        </div>
+                    </div>
+
+                    <div class="zktls-controls">
+                        <button id="connect-wallet-btn" class="btn btn-outline">🔗 连接钱包</button>
+                        <button id="init-zktls-btn" class="btn btn-outline" disabled>🚀 初始化zkTLS</button>
+                        <button id="generate-proof-btn" class="btn btn-primary" disabled>📜 生成证明</button>
+                    </div>
+
+                    <div class="proof-display">
+                        <h5>最新证明</h5>
+                        <div id="latest-proof" class="proof-info">
+                            <p class="no-proof">暂无证明</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -182,6 +214,28 @@
                         <span class="no-achievements">暂无成就</span>
                     </div>
                 </div>
+
+                <!-- zkTLS 证明历史 -->
+                <div class="proof-history-panel">
+                    <h4>🔐 证明历史</h4>
+                    <div class="proof-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">总证明数:</span>
+                            <span id="total-proofs" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">已验证:</span>
+                            <span id="verified-proofs" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    <div id="proof-history-list" class="proof-history-list">
+                        <span class="no-proofs">暂无证明记录</span>
+                    </div>
+                    <div class="proof-actions">
+                        <button id="export-proofs-btn" class="btn btn-outline btn-small">📤 导出证明</button>
+                        <button id="clear-proofs-btn" class="btn btn-outline btn-small">🗑️ 清除历史</button>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -191,6 +245,10 @@
     </div>
 
     <!-- JavaScript 文件 -->
+    <script src="js/zktls-config.js"></script>
+    <script src="js/zktls-integration.js"></script>
+    <script src="js/zktls-scoring-integration.js"></script>
+    <script src="js/zktls-debug-monitor.js"></script>
     <script src="js/pose-definitions.js"></script>
     <script src="js/pose-detector.js"></script>
     <script src="js/hand-detector.js"></script>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zkTLS Conditions Test - Rhythm Pose</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #8A2BE2;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .btn {
+            background: #8A2BE2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover { background: #7B68EE; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid transparent;
+        }
+        .metric-card.pass {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .metric-card.fail {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+        }
+        .requirement {
+            font-size: 12px;
+            color: #888;
+        }
+        .log {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 zkTLS 证明条件测试工具</h1>
+        <p>调整和测试 zkTLS 证明生成的条件要求</p>
+
+        <div class="grid">
+            <!-- 左侧：配置调整 -->
+            <div>
+                <div class="section">
+                    <h3>⚙️ 条件配置</h3>
+                    <div class="form-group">
+                        <label>最低分数要求:</label>
+                        <input type="number" id="min-score" value="75" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>最低持续时间 (秒):</label>
+                        <input type="number" id="min-duration" value="3" min="0" max="30" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>最低准确度 (%):</label>
+                        <input type="number" id="min-accuracy" value="80" min="0" max="100">
+                    </div>
+                    <button id="update-config" class="btn">更新配置</button>
+                    <button id="reset-config" class="btn">重置默认</button>
+                </div>
+
+                <div class="section">
+                    <h3>🧪 模拟测试</h3>
+                    <div class="form-group">
+                        <label>测试分数:</label>
+                        <input type="number" id="test-score" value="85" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>测试持续时间 (秒):</label>
+                        <input type="number" id="test-duration" value="5" min="0" max="30" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>测试准确度 (%):</label>
+                        <input type="number" id="test-accuracy" value="90" min="0" max="100">
+                    </div>
+                    <button id="test-conditions" class="btn">测试条件</button>
+                    <button id="generate-test-data" class="btn">生成随机数据</button>
+                </div>
+            </div>
+
+            <!-- 右侧：结果显示 -->
+            <div>
+                <div class="section">
+                    <h3>📊 测试结果</h3>
+                    <div id="test-status" class="status info">等待测试...</div>
+                    
+                    <div class="metrics">
+                        <div id="score-metric" class="metric-card">
+                            <div class="metric-label">分数</div>
+                            <div id="score-value" class="metric-value">0</div>
+                            <div class="requirement">要求: ≥<span id="score-req">75</span></div>
+                        </div>
+                        <div id="duration-metric" class="metric-card">
+                            <div class="metric-label">持续时间</div>
+                            <div id="duration-value" class="metric-value">0s</div>
+                            <div class="requirement">要求: ≥<span id="duration-req">3</span>s</div>
+                        </div>
+                        <div id="accuracy-metric" class="metric-card">
+                            <div class="metric-label">准确度</div>
+                            <div id="accuracy-value" class="metric-value">0%</div>
+                            <div class="requirement">要求: ≥<span id="accuracy-req">80</span>%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>💡 建议</h3>
+                    <div id="suggestions" class="info">
+                        <p>调整测试参数以查看建议...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>📝 操作日志</h3>
+            <div id="log" class="log">等待操作...</div>
+        </div>
+    </div>
+
+    <!-- 加载依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="js/zktls-browser-wrapper.js"></script>
+    <script src="js/zktls-config.js"></script>
+
+    <script>
+        let currentConfig = {
+            minScore: 75,
+            minDuration: 3,
+            minAccuracy: 80
+        };
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('test-status');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        function updateMetrics(testData, requirements) {
+            // 更新分数
+            const scorePass = testData.score >= requirements.minScore;
+            document.getElementById('score-value').textContent = testData.score;
+            document.getElementById('score-req').textContent = requirements.minScore;
+            document.getElementById('score-metric').className = `metric-card ${scorePass ? 'pass' : 'fail'}`;
+
+            // 更新持续时间
+            const durationPass = testData.duration >= requirements.minDuration;
+            document.getElementById('duration-value').textContent = testData.duration + 's';
+            document.getElementById('duration-req').textContent = requirements.minDuration;
+            document.getElementById('duration-metric').className = `metric-card ${durationPass ? 'pass' : 'fail'}`;
+
+            // 更新准确度
+            const accuracyPass = testData.accuracy >= requirements.minAccuracy;
+            document.getElementById('accuracy-value').textContent = testData.accuracy + '%';
+            document.getElementById('accuracy-req').textContent = requirements.minAccuracy;
+            document.getElementById('accuracy-metric').className = `metric-card ${accuracyPass ? 'pass' : 'fail'}`;
+
+            return { scorePass, durationPass, accuracyPass };
+        }
+
+        function updateSuggestions(testData, requirements, results) {
+            const suggestions = [];
+            
+            if (!results.scorePass) {
+                const needed = requirements.minScore - testData.score;
+                suggestions.push(`🎯 分数需要提高 ${needed.toFixed(1)} 分`);
+                suggestions.push(`💡 建议：提高姿势准确度和稳定性`);
+            }
+
+            if (!results.durationPass) {
+                const needed = requirements.minDuration - testData.duration;
+                suggestions.push(`⏱️ 持续时间需要增加 ${needed.toFixed(1)} 秒`);
+                suggestions.push(`💡 建议：保持姿势稳定，避免频繁移动`);
+            }
+
+            if (!results.accuracyPass) {
+                const needed = requirements.minAccuracy - testData.accuracy;
+                suggestions.push(`🎯 准确度需要提高 ${needed.toFixed(1)}%`);
+                suggestions.push(`💡 建议：调整身体位置，确保关键点检测准确`);
+            }
+
+            if (suggestions.length === 0) {
+                suggestions.push('🎉 所有条件都已满足！可以生成 zkTLS 证明了！');
+                suggestions.push('✨ 当前配置适合实际使用');
+            } else {
+                // 添加配置建议
+                if (testData.score < 60) {
+                    suggestions.push('⚙️ 考虑降低最低分数要求到 60-70 分');
+                }
+                if (testData.duration < 2) {
+                    suggestions.push('⚙️ 考虑降低最低持续时间要求到 2 秒');
+                }
+                if (testData.accuracy < 70) {
+                    suggestions.push('⚙️ 考虑降低最低准确度要求到 70%');
+                }
+            }
+
+            document.getElementById('suggestions').innerHTML = 
+                suggestions.map(s => `<p>${s}</p>`).join('');
+        }
+
+        // 更新配置
+        document.getElementById('update-config').addEventListener('click', () => {
+            currentConfig.minScore = parseFloat(document.getElementById('min-score').value);
+            currentConfig.minDuration = parseFloat(document.getElementById('min-duration').value);
+            currentConfig.minAccuracy = parseFloat(document.getElementById('min-accuracy').value);
+
+            // 更新全局配置
+            if (window.ZKTLSConfig) {
+                window.ZKTLSConfig.conditions.minScore = currentConfig.minScore;
+                window.ZKTLSConfig.conditions.minDuration = currentConfig.minDuration;
+                window.ZKTLSConfig.conditions.minAccuracy = currentConfig.minAccuracy;
+            }
+
+            log(`配置已更新: 分数≥${currentConfig.minScore}, 时间≥${currentConfig.minDuration}s, 准确度≥${currentConfig.minAccuracy}%`);
+            updateStatus('配置已更新', 'success');
+        });
+
+        // 重置配置
+        document.getElementById('reset-config').addEventListener('click', () => {
+            document.getElementById('min-score').value = 75;
+            document.getElementById('min-duration').value = 3;
+            document.getElementById('min-accuracy').value = 80;
+            
+            currentConfig = { minScore: 75, minDuration: 3, minAccuracy: 80 };
+            log('配置已重置为默认值');
+            updateStatus('配置已重置', 'info');
+        });
+
+        // 测试条件
+        document.getElementById('test-conditions').addEventListener('click', () => {
+            const testData = {
+                score: parseFloat(document.getElementById('test-score').value),
+                duration: parseFloat(document.getElementById('test-duration').value),
+                accuracy: parseFloat(document.getElementById('test-accuracy').value)
+            };
+
+            log(`测试数据: 分数=${testData.score}, 时间=${testData.duration}s, 准确度=${testData.accuracy}%`);
+
+            const results = updateMetrics(testData, currentConfig);
+            const allPass = results.scorePass && results.durationPass && results.accuracyPass;
+
+            if (allPass) {
+                updateStatus('✅ 所有条件都满足！可以生成证明', 'success');
+                log('✅ 测试通过：满足所有证明条件');
+            } else {
+                const failed = [];
+                if (!results.scorePass) failed.push('分数');
+                if (!results.durationPass) failed.push('持续时间');
+                if (!results.accuracyPass) failed.push('准确度');
+                
+                updateStatus(`❌ 不满足条件: ${failed.join(', ')}`, 'error');
+                log(`❌ 测试失败：不满足 ${failed.join(', ')} 要求`);
+            }
+
+            updateSuggestions(testData, currentConfig, results);
+        });
+
+        // 生成随机测试数据
+        document.getElementById('generate-test-data').addEventListener('click', () => {
+            const randomScore = Math.floor(Math.random() * 100);
+            const randomDuration = Math.round((Math.random() * 10 + 1) * 10) / 10;
+            const randomAccuracy = Math.floor(Math.random() * 100);
+
+            document.getElementById('test-score').value = randomScore;
+            document.getElementById('test-duration').value = randomDuration;
+            document.getElementById('test-accuracy').value = randomAccuracy;
+
+            log(`生成随机测试数据: 分数=${randomScore}, 时间=${randomDuration}s, 准确度=${randomAccuracy}%`);
+            
+            // 自动测试
+            document.getElementById('test-conditions').click();
+        });
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            log('zkTLS 条件测试工具已加载');
+            updateStatus('工具已就绪，请调整参数进行测试', 'info');
+            
+            // 初始化显示
+            updateMetrics(
+                { score: 0, duration: 0, accuracy: 0 },
+                currentConfig
+            );
+        });
+    </script>
+</body>
+</html>
