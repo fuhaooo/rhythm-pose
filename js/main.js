@@ -382,7 +382,7 @@ class RhythmPoseApp {
 
         // 清空画布
         const container = document.getElementById('video-wrapper');
-        container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 400px; color: #6c757d; font-size: 1.2rem;">摄像头已关闭</div>';
+        container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 400px; color: #ffffff; font-size: 1.2rem; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); font-weight: 600;">📷 摄像头已关闭</div>';
 
         // 更新状态
         this.updateStatus('camera', '未连接', '');

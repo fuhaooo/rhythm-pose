@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhythm Pose - 动作识别系统</title>
+    <title>Rhythm Pose - 用动作重新定义链上交互与空投机制</title>
     <link rel="stylesheet" href="styles/main.css">
     <!-- 移除 TensorFlow.js 库以避免与 ml5.js 冲突 -->
     <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script> -->
@@ -28,13 +28,41 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>🎯 Rhythm Pose</h1>
-            <p>AI 动作识别与评分系统</p>
+            <h1>💎 <span class="rhythm">Rhythm</span> <span class="pose">Pose</span></h1>
+            <p>PoP：用动作重新定义链上交互与空投机制</p>
         </header>
 
         <main class="main-content">
             <!-- 控制面板 -->
             <div class="control-panel">
+                <!-- zkTLS 证明系统 -->
+                <div class="zktls-section">
+                    <h4>🔐 zkTLS 证明系统</h4>
+                    <div class="zktls-status">
+                        <div class="status-item">
+                            <span class="label">zkTLS状态:</span>
+                            <span id="zktls-status" class="status">未初始化</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">用户地址:</span>
+                            <span id="user-address" class="status">未连接</span>
+                        </div>
+                    </div>
+
+                    <div class="zktls-controls">
+                        <button id="connect-wallet-btn" class="btn btn-outline">🔗 连接钱包</button>
+                        <button id="init-zktls-btn" class="btn btn-outline" disabled>🚀 初始化zkTLS</button>
+                        <button id="generate-proof-btn" class="btn btn-primary" disabled>📜 生成证明</button>
+                    </div>
+
+                    <div class="proof-display">
+                        <h5>最新证明</h5>
+                        <div id="latest-proof" class="proof-info">
+                            <p class="no-proof">暂无证明</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="status-info">
                     <div class="status-item">
                         <span class="label">摄像头状态:</span>
@@ -90,34 +118,6 @@
                     </div>
                     <div id="custom-actions-list" class="custom-actions-list">
                         <p class="no-custom-actions">暂无自定义动作</p>
-                    </div>
-                </div>
-
-                <!-- zkTLS 证明系统 -->
-                <div class="zktls-section">
-                    <h4>🔐 zkTLS 证明系统</h4>
-                    <div class="zktls-status">
-                        <div class="status-item">
-                            <span class="label">zkTLS状态:</span>
-                            <span id="zktls-status" class="status">未初始化</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="label">用户地址:</span>
-                            <span id="user-address" class="status">未连接</span>
-                        </div>
-                    </div>
-
-                    <div class="zktls-controls">
-                        <button id="connect-wallet-btn" class="btn btn-outline">🔗 连接钱包</button>
-                        <button id="init-zktls-btn" class="btn btn-outline" disabled>🚀 初始化zkTLS</button>
-                        <button id="generate-proof-btn" class="btn btn-primary" disabled>📜 生成证明</button>
-                    </div>
-
-                    <div class="proof-display">
-                        <h5>最新证明</h5>
-                        <div id="latest-proof" class="proof-info">
-                            <p class="no-proof">暂无证明</p>
-                        </div>
                     </div>
                 </div>
             </div>

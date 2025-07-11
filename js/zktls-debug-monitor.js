@@ -110,14 +110,16 @@ class ZKTLSDebugMonitor {
                 top: 20px;
                 right: 20px;
                 width: 350px;
-                background: rgba(0, 0, 0, 0.9);
-                color: white;
-                border-radius: 10px;
-                padding: 15px;
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
+                background: rgba(255, 255, 255, 0.95);
+                color: #333;
+                border-radius: 15px;
+                padding: 20px;
+                font-family: 'Segoe UI', -apple-system, sans-serif;
+                font-size: 13px;
                 z-index: 10000;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                box-shadow: 0 8px 32px rgba(138, 43, 226, 0.2);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(138, 43, 226, 0.2);
                 max-height: 80vh;
                 overflow-y: auto;
             }
@@ -127,51 +129,67 @@ class ZKTLSDebugMonitor {
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 15px;
-                border-bottom: 1px solid #444;
+                border-bottom: 1px solid rgba(138, 43, 226, 0.2);
                 padding-bottom: 10px;
             }
             
             .debug-header h4 {
                 margin: 0;
                 color: #8A2BE2;
+                font-size: 1.1rem;
+                font-weight: 600;
             }
             
             .debug-toggle {
-                background: #8A2BE2;
+                background: linear-gradient(135deg, #9B4DEE, #8A2BE2);
                 color: white;
                 border: none;
-                padding: 5px 10px;
-                border-radius: 5px;
+                padding: 6px 12px;
+                border-radius: 8px;
                 cursor: pointer;
-                font-size: 10px;
+                font-size: 12px;
+                font-weight: 500;
+                transition: all 0.3s ease;
+            }
+
+            .debug-toggle:hover {
+                background: linear-gradient(135deg, #8A2BE2, #7B68EE);
+                transform: translateY(-1px);
             }
             
             .requirements-section, .current-section, .detailed-section, .proof-section, .tips-section {
                 margin-bottom: 15px;
-                padding: 10px;
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 5px;
+                padding: 15px;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 12px;
+                border: 1px solid rgba(138, 43, 226, 0.1);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             }
             
             .requirements-section h5, .current-section h5, .detailed-section h5, .proof-section h5, .tips-section h5 {
-                margin: 0 0 10px 0;
-                color: #4CAF50;
+                margin: 0 0 12px 0;
+                color: #8A2BE2;
+                font-size: 1rem;
+                font-weight: 600;
             }
             
             .requirement-item, .current-item, .detail-item {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
+                padding: 6px 0;
+                border-bottom: 1px solid rgba(138, 43, 226, 0.1);
             }
             
             .label {
-                color: #ccc;
+                color: #555;
+                font-weight: 500;
             }
             
             .value {
-                color: #fff;
-                font-weight: bold;
+                color: #333;
+                font-weight: 600;
             }
             
             .status {
@@ -182,43 +200,50 @@ class ZKTLSDebugMonitor {
             .proof-indicator {
                 display: block;
                 text-align: center;
-                padding: 10px;
-                border-radius: 5px;
-                background: rgba(255, 0, 0, 0.2);
+                padding: 12px;
+                border-radius: 8px;
+                background: rgba(255, 107, 107, 0.1);
                 color: #ff6b6b;
-                font-weight: bold;
+                font-weight: 600;
+                margin: 10px 0;
             }
             
             .proof-indicator.eligible {
-                background: rgba(0, 255, 0, 0.2);
+                background: rgba(81, 207, 102, 0.1);
                 color: #51cf66;
             }
             
             .proof-actions {
                 display: flex;
                 gap: 10px;
-                margin-top: 10px;
+                margin-top: 12px;
             }
             
             .debug-btn {
                 flex: 1;
-                background: #007bff;
+                background: linear-gradient(135deg, #9B4DEE, #8A2BE2);
                 color: white;
                 border: none;
-                padding: 8px;
-                border-radius: 5px;
+                padding: 8px 12px;
+                border-radius: 8px;
                 cursor: pointer;
-                font-size: 10px;
+                font-size: 12px;
+                font-weight: 500;
+                transition: all 0.3s ease;
             }
             
             .debug-btn:hover {
-                background: #0056b3;
+                background: linear-gradient(135deg, #8A2BE2, #7B68EE);
+                transform: translateY(-1px);
             }
             
             .tips-content {
-                font-size: 11px;
-                line-height: 1.4;
-                color: #ffd43b;
+                font-size: 12px;
+                line-height: 1.5;
+                color: #666;
+                padding: 8px;
+                background: rgba(138, 43, 226, 0.05);
+                border-radius: 6px;
             }
             
             .hidden {
